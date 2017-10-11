@@ -7,14 +7,6 @@
 #include <queue>
 
 #include <CGAL/wlop_simplify_and_regularize_point_set.h>
-#include <CGAL/bounding_box.h>
-#include <CGAL/remove_outliers.h>
-#include <CGAL/Polygon_mesh_processing/refine.h>
-#include <CGAL/Polygon_mesh_processing/fair.h>
-#include <CGAL/Surface_mesh_simplification/Policies/Edge_collapse/Count_stop_predicate.h>
-#include <CGAL/Surface_mesh_simplification/Policies/Edge_collapse/Edge_length_cost.h>
-#include <CGAL/Surface_mesh_simplification/Policies/Edge_collapse/Midpoint_placement.h>
-#include <CGAL/Inverse_index.h>
 
 #include "CGAL.hpp"
 #include "Logger.hpp"
@@ -55,6 +47,7 @@ private:
 	 * \brief loadPointCloud    Builds a 2.5D mesh from loaded points
 	 */
 	void buildMesh();
+	void savePlanes();
 
 	/*!
 	 * \brief printHelp     Prints help, explaining usage. Can be shown by calling the program with argument: "-help".
@@ -67,9 +60,10 @@ private:
 	std::string outputFile = "odm_25dmesh.ply";
 	std::string logFilePath = "odm_25dmeshing_log.txt";
 	unsigned int maxVertexCount = 100000;
-	double outliersRemovalPercentage = 2;
 	unsigned int wlopIterations = 35;
 	std::vector<Point3> points;
+	std::vector<Vector3> normals;
+
 	bool flipFaces = false;
 };
 

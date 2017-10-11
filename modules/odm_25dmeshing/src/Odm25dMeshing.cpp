@@ -1,4 +1,6 @@
 #include "Odm25dMeshing.hpp"
+#include <CGAL/Shape_detection_3.h>
+#include <CGAL/regularize_planes.h>
 
 int Odm25dMeshing::run(int argc, char **argv) {
 	log << logFilePath << "\n";
@@ -15,7 +17,8 @@ int Odm25dMeshing::run(int argc, char **argv) {
 
 		loadPointCloud();
 
-		buildMesh();
+		savePlanes();
+		//buildMesh();
 
 	} catch (const Odm25dMeshingException& e) {
 		log.setIsPrintingInCout(true);
@@ -55,15 +58,6 @@ void Odm25dMeshing::parseArguments(int argc, char **argv) {
             if (ss.bad()) throw Odm25dMeshingException("Argument '" + argument + "' has a bad value (wrong type).");
             maxVertexCount = std::max<unsigned int>(maxVertexCount, 0);
             log << "Vertex count was manually set to: " << maxVertexCount << "\n";
-		} else if (argument == "-outliersRemovalPercentage" && argIndex < argc) {
-			++argIndex;
-			if (argIndex >= argc) throw Odm25dMeshingException("Argument '" + argument + "' expects 1 more input following it, but no more inputs were provided.");
-			std::stringstream ss(argv[argIndex]);
-			ss >> outliersRemovalPercentage;
-			if (ss.bad()) throw Odm25dMeshingException("Argument '" + argument + "' has a bad value (wrong type).");
-
-			outliersRemovalPercentage = std::min<double>(99.99, std::max<double>(outliersRemovalPercentage, 0));
-			log << "Outliers removal was manually set to: " << outliersRemovalPercentage << "\n";
 		} else if (argument == "-wlopIterations" && argIndex < argc) {
 			++argIndex;
 			if (argIndex >= argc) throw Odm25dMeshingException("Argument '" + argument + "' expects 1 more input following it, but no more inputs were provided.");
@@ -125,7 +119,7 @@ void Odm25dMeshing::parseArguments(int argc, char **argv) {
 }
 
 void Odm25dMeshing::loadPointCloud(){
-	  PlyInterpreter interpreter(points);
+	  PlyInterpreter interpreter(points, normals);
 
 	  std::ifstream in(inputFile);
 	  if (!in || !CGAL::read_ply_custom_points (in, interpreter, Kernel())){
@@ -138,71 +132,145 @@ void Odm25dMeshing::loadPointCloud(){
 	  log << "Successfully loaded " << points.size() << " points from file\n";
 }
 
-void Odm25dMeshing::buildMesh(){
-	const unsigned int NEIGHBORS = 24;
+void Odm25dMeshing::savePlanes(){
+	typedef std::pair<Point3, Vector3>         Point_with_normal;
+	typedef std::vector<Point_with_normal>     Pwn_vector;
+	typedef CGAL::First_of_pair_property_map<Point_with_normal>  Point_map;
+	typedef CGAL::Second_of_pair_property_map<Point_with_normal> Normal_map;
+	typedef CGAL::Shape_detection_3::Efficient_RANSAC_traits<Kernel, Pwn_vector, Point_map, Normal_map>            Traits;
+	typedef CGAL::Shape_detection_3::Efficient_RANSAC<Traits>   Efficient_ransac;
+	typedef CGAL::Shape_detection_3::Plane<Traits>              Plane;
+	typedef CGAL::Shape_detection_3::Cone<Traits>             Cone;
+	typedef CGAL::Shape_detection_3::Cylinder<Traits>         Cylinder;
+	typedef CGAL::Shape_detection_3::Sphere<Traits>           Sphere;
 
-	size_t pointCount = points.size();
-	size_t pointCountBeforeOutlierRemoval = pointCount;
+//	My_point_property_map ppmap(points);
+//	Tree tree(
+//		boost::counting_iterator<std::size_t>(0),
+//		boost::counting_iterator<std::size_t>(points.size()),
+//		Splitter(),
+//		TreeTraits(ppmap)
+//	  );
+//
+	Pwn_vector output;
+//	const unsigned int K = 8;
+	const float NORMAL_THRESHOLD = 0.92;
+//
+//	Distance tr_dist(ppmap);
+//
+//	// Initialize the search structure, and search all N points
+//	for (size_t i = 0; i < points.size(); i++){
+//	  Point3 &currentPoint = points[i];
+//	  Vector3 &currentNormal = normals[i];
+//	  unsigned short sameDirection = 0;
+//
+//	  Neighbor_search search(tree, currentPoint, K, 0, true, tr_dist);
+//
+//	  for(Neighbor_search::iterator it = search.begin(); it != search.end(); it++){
+//		  Vector3 &n = normals[it->first];
+//
+//		  FT dotProduct = currentNormal.x() * n.x() +
+//						  currentNormal.y() * n.y() +
+//						  currentNormal.z() * n.z();
+//
+//		  if (dotProduct >= NORMAL_THRESHOLD) sameDirection++;
+//		  else break;
+//	  }
+//
+//
+//	  if (sameDirection == K){
+//		  // Likely planar surface
+//		  output.push_back(std::make_pair(currentPoint, currentNormal));
+//	  }
+//	}
 
-	log << "Removing outliers... ";
+	for (size_t i = 0; i < points.size(); i++){
+		  Point3 &currentPoint = points[i];
+		  Vector3 &currentNormal = normals[i];
+		output.push_back(std::make_pair(currentPoint, currentNormal));
+	}
+	// Instantiates shape detection engine.
+	Efficient_ransac ransac;
+	// Provides the input data.
+	ransac.set_input(output);
+	// Registers detection of planes
+	ransac.add_shape_factory<Plane>();
+//	ransac.add_shape_factory<Cone>();
+//	ransac.add_shape_factory<Cylinder>();
+//	ransac.add_shape_factory<Sphere>();
 
-	points.erase(CGAL::remove_outliers(points.begin(), points.end(),
-				 NEIGHBORS,
-				 outliersRemovalPercentage),
-	 			points.end());
-	std::vector<Point3>(points).swap(points);
-	pointCount = points.size();
 
-	log << "removed " << pointCountBeforeOutlierRemoval - pointCount << " points\n";
+	// Sets parameters for shape detection.
+	Efficient_ransac::Parameters parameters;
+	// Sets probability to miss the largest primitive at each iteration.
+	parameters.probability = 0.05;
 
-	log << "Computing average spacing... ";
+	// Detect shapes with at least 500 points.
+	parameters.min_points = 500;
 
-	FT avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
-			points.begin(),
-			points.end(),
-			NEIGHBORS);
+	// Sets maximum Euclidean distance between a point and a shape.
+	parameters.epsilon = 0.15;
 
-	log << avgSpacing << "\n";
+	// Sets maximum Euclidean distance between points to be clustered.
+	parameters.cluster_epsilon = 0.15;
 
-	log << "Grid Z sampling... ";
+	// Sets maximum normal deviation.
+	// 0.9 < dot(surface_normal, point_normal);
+	parameters.normal_threshold = NORMAL_THRESHOLD;
 
-	size_t pointCountBeforeGridSampling = pointCount;
+	// Detects shapes
+	ransac.detect(parameters);
 
-	double gridStep = avgSpacing / 2;
-	Kernel::Iso_cuboid_3 bbox = CGAL::bounding_box(points.begin(), points.end());
-	Vector3 boxDiag = bbox.max() - bbox.min();
+	// Prints number of detected shapes and unassigned points.
+	std::cout << ransac.shapes().end() - ransac.shapes().begin() << " detected shapes, "
+	 << ransac.number_of_unassigned_points()
+	 << " unassigned points." << std::endl;
 
-	int gridWidth = 1 + static_cast<unsigned>(boxDiag.x() / gridStep + 0.5);
-	int gridHeight = 1 + static_cast<unsigned>(boxDiag.y() / gridStep + 0.5);
+	// Efficient_ransac::shapes() provides
+	// an iterator range to the detected shapes.
+	Efficient_ransac::Shape_range shapes = ransac.shapes();
+	Efficient_ransac::Shape_range::iterator it = shapes.begin();
 
-	#define KEY(i, j) (i * gridWidth + j)
+	std::filebuf fb;
+	fb.open(outputFile, std::ios::out);
+	std::ostream os(&fb);
 
-	std::unordered_map<int, Point3> grid;
+	os << "ply\n"
+	 << "format ascii 1.0\n"
+	 << "element vertex " << output.size() - ransac.number_of_unassigned_points() << "\n"
+	 << "property float x\n"
+	 << "property float y\n"
+	 << "property float z\n"
+	 << "element face 0\n"
+	 << "property list uchar int vertex_index\n"
+	 << "end_header\n";
 
-	for (size_t c = 0; c < pointCount; c++){
-		const Point3 &p = points[c];
-		Vector3 relativePos = p - bbox.min();
-		int i = static_cast<int>((relativePos.x() / gridStep + 0.5));
-		int j = static_cast<int>((relativePos.y() / gridStep + 0.5));
+	while (it != shapes.end()) {
+		boost::shared_ptr<Efficient_ransac::Shape> shape = *it;
+		// Using Shape_base::info() for printing
+		// the parameters of the detected shape.
+		std::cout << (*it)->info() << std::endl;
 
-		if ((i >= 0 && i < gridWidth) && (j >= 0 && j < gridHeight)){
-			int key = KEY(i, j);
 
-			if (grid.find(key) == grid.end()){
-				grid[key] = p;
-			}else if ((!flipFaces && p.z() > grid[key].z()) || (flipFaces && p.z() < grid[key].z())){
-				grid[key] = p;
-			}
+		// Iterates through point indices assigned to each detected shape.
+		std::vector<std::size_t>::const_iterator
+		  index_it = (*it)->indices_of_assigned_points().begin();
+		while (index_it != (*it)->indices_of_assigned_points().end()) {
+		  // Retrieves point
+		  const Point_with_normal &p = *(output.begin() + (*index_it));
+		  os << p.first.x() << " " << p.first.y() << " " << p.first.z() << std::endl;
+		  index_it++;
 		}
+
+		// Proceeds with next detected shape.
+		it++;
 	}
 
-	std::vector<Point3> gridPoints;
-	for ( auto it = grid.begin(); it != grid.end(); ++it ){
-		gridPoints.push_back(it->second);
-	}
+	std::cout << "Done" << std::endl;
+}
 
-	pointCount = gridPoints.size();
-	log << "sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
+void Odm25dMeshing::buildMesh(){
+	size_t pointCount = points.size();
 
 	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
 	std::vector<Point3> simplifiedPoints;
@@ -210,13 +278,13 @@ void Odm25dMeshing::buildMesh(){
 	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
 
 	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
-		 	gridPoints.begin(),
-			gridPoints.end(),
+		 	points.begin(),
+			points.end(),
 			std::back_inserter(simplifiedPoints),
 			RETAIN_PERCENTAGE,
-			8 * avgSpacing,
+			-1,
 			wlopIterations,
-			true);
+			false);
 
 	pointCount = simplifiedPoints.size();
 
@@ -227,8 +295,6 @@ void Odm25dMeshing::buildMesh(){
 	log << "Vertex count is " << pointCount << "\n";
 
 	typedef CDT::Point cgalPoint;
-	typedef CDT::Vertex_circulator Vertex_circulator;
-
 	std::vector< std::pair<cgalPoint, size_t > > pts;
 	try{
 		pts.reserve(pointCount);
@@ -246,7 +312,7 @@ void Odm25dMeshing::buildMesh(){
 	cdt.insert(pts.begin(), pts.end());
 
 	unsigned int numberOfTriangles = static_cast<unsigned >(cdt.number_of_faces());
-	unsigned int triIndexes = cdt.number_of_faces()*3;
+	unsigned int triIndexes = numberOfTriangles*3;
 
 	if (numberOfTriangles == 0) throw Odm25dMeshingException("No triangles in resulting mesh");
 
@@ -263,109 +329,7 @@ void Odm25dMeshing::buildMesh(){
 	}
 
 
-	for (size_t i = 0; i < pointCount; ++i){
-		vertices.push_back(simplifiedPoints[i].x());
-		vertices.push_back(simplifiedPoints[i].y());
-		vertices.push_back(simplifiedPoints[i].z());
-	}
-
-	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
-		if (flipFaces){
-			vertexIndices.push_back(face->vertex(2)->info());
-			vertexIndices.push_back(face->vertex(1)->info());
-			vertexIndices.push_back(face->vertex(0)->info());
-		}else{
-			vertexIndices.push_back(face->vertex(0)->info());
-			vertexIndices.push_back(face->vertex(1)->info());
-			vertexIndices.push_back(face->vertex(2)->info());
-		}
-	}
-
-	log << "Removing spikes... ";
-
-	const float THRESHOLD = avgSpacing;
-	std::vector<float> heights;
-	unsigned int spikesRemoved = 0;
-
-	for (CDT::Vertex_iterator vertex = cdt.vertices_begin(); vertex != cdt.vertices_end(); ++vertex){
-		// Check if the height between this vertex and its
-		// incident vertices is greater than THRESHOLD
-		Vertex_circulator vc = cdt.incident_vertices(vertex), done(vc);
-
-		if (vc != 0){
-			float height = vertices[vertex->info() * 3 + 2];
-			int threshold_over_count = 0;
-			int vertexCount = 0;
-
-			do{
-				if (cdt.is_infinite(vc)) continue;
-
-				float ivHeight = vertices[vc->info() * 3 + 2];
-
-				if (fabs(height - ivHeight) > THRESHOLD){
-					threshold_over_count++;
-					heights.push_back(ivHeight);
-				}
-
-				vertexCount++;
-			}while(++vc != done);
-
-			if (vertexCount == threshold_over_count){
-				// Replace the height of the vertex by the median height
-				// of its incident vertices
-				std::sort(heights.begin(), heights.end());
-
-				vertices[vertex->info() * 3 + 2] = heights[heights.size() / 2];
-
-				spikesRemoved++;
-			}
-
-			heights.clear();
-		}
-	}
-
-	log << "removed " << spikesRemoved << " spikes\n";
-
-	log << "Building polyhedron... ";
-
-	Polyhedron poly;
-	PolyhedronBuilder<HalfedgeDS> builder(vertices, vertexIndices);
-	poly.delegate( builder );
-
-	log << "done\n";
-
-	log << "Refining... ";
-
-	typedef Polyhedron::Vertex_handle   Vertex_handle;
-	std::vector<Polyhedron::Facet_handle>  new_facets;
-	std::vector<Vertex_handle> new_vertices;
-	CGAL::Polygon_mesh_processing::refine(poly,
-				  faces(poly),
-				  std::back_inserter(new_facets),
-				  std::back_inserter(new_vertices),
-				  CGAL::Polygon_mesh_processing::parameters::density_control_factor(2.));
-
-	log << "added " << new_vertices.size() << " new vertices\n";
-
-//	log << "Edge collapsing... ";
-//
-//	SMS::Count_stop_predicate<Polyhedron> stop(maxVertexCount * 3);
-//	int redgesRemoved = SMS::edge_collapse(poly, stop,
-//				  CGAL::parameters::vertex_index_map(get(CGAL::vertex_external_index, poly))
-//								 .halfedge_index_map  (get(CGAL::halfedge_external_index, poly))
-//								 .get_cost (SMS::Edge_length_cost <Polyhedron>())
-//								 .get_placement(SMS::Midpoint_placement<Polyhedron>())
-//			  );
-//
-//	log << redgesRemoved << " edges removed.\n";
-
-	log << "Final vertex count is " << poly.size_of_vertices() << "\n";
-
 	log << "Saving mesh to file.\n";
-
-    typedef typename Polyhedron::Vertex_const_iterator VCI;
-    typedef typename Polyhedron::Facet_const_iterator FCI;
-    typedef typename Polyhedron::Halfedge_around_facet_const_circulator HFCC;
 
 	std::filebuf fb;
 	fb.open(outputFile, std::ios::out);
@@ -373,32 +337,26 @@ void Odm25dMeshing::buildMesh(){
 
 	os << "ply\n"
 	   << "format ascii 1.0\n"
-	   << "element vertex " << poly.size_of_vertices() << "\n"
+	   << "element vertex " << pointCount << "\n"
 	   << "property float x\n"
 	   << "property float y\n"
 	   << "property float z\n"
-	   << "element face " << poly.size_of_facets() << "\n"
+	   << "element face " << numberOfTriangles << "\n"
 	   << "property list uchar int vertex_index\n"
 	   << "end_header\n";
 
-	for (auto it = poly.vertices_begin(); it != poly.vertices_end(); it++){
-		os << it->point().x() << " " << it->point().y() << " " << it->point().z() << std::endl;
+	for (size_t i = 0; i < pointCount; ++i){
+		os << simplifiedPoints[i].x() << " " << simplifiedPoints[i].y() << " " << simplifiedPoints[i].z() << std::endl;
 	}
 
-	typedef CGAL::Inverse_index<VCI> Index;
-	Index index(poly.vertices_begin(), poly.vertices_end());
+	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
+		os << 3 << " ";
 
-	for( FCI fi = poly.facets_begin(); fi != poly.facets_end(); ++fi) {
-		HFCC hc = fi->facet_begin();
-		HFCC hc_end = hc;
-
-		os << circulator_size(hc) << " ";
-		do {
-			os << index[VCI(hc->vertex())] << " ";
-			++hc;
-		} while( hc != hc_end);
-
-		os << "\n";
+		if (flipFaces){
+			os << face->vertex(2)->info() << " " << face->vertex(1)->info() << " " << face->vertex(0)->info() << std::endl;
+		}else{
+			os << face->vertex(0)->info() << " " << face->vertex(1)->info() << " " << face->vertex(2)->info() << std::endl;
+		}
 	}
 
 	fb.close();
