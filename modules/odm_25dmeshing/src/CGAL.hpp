@@ -6,8 +6,8 @@
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Delaunay_mesh_face_base_2.h>
 #include <CGAL/Triangulation_2.h>
-
-#include <CGAL/remove_outliers.h>
+#include <CGAL/bounding_box.h>
+#include <CGAL/compute_average_spacing.h>
 #include <CGAL/Shape_detection_3.h>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;

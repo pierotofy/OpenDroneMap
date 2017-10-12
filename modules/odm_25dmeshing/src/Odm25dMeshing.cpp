@@ -16,8 +16,8 @@ int Odm25dMeshing::run(int argc, char **argv) {
 
 		loadPointCloud();
 
-		savePlanes();
-		//buildMesh();
+		detectPlanes();
+		buildMesh();
 
 	} catch (const Odm25dMeshingException& e) {
 		log.setIsPrintingInCout(true);
@@ -132,18 +132,30 @@ void Odm25dMeshing::loadPointCloud(){
 	  log << "Loaded " << nongroundPoints.size() << " non-ground points\n";
 }
 
-void Odm25dMeshing::savePlanes(){
-	return;
+// Detect planes from non-ground points
+// and place them into the ground points (this just to avoid
+// creating a new vector)
+void Odm25dMeshing::detectPlanes(){
+	if (nongroundPoints.size() < 3) return;
 
 	Pwn_vector output;
-	const float NORMAL_THRESHOLD = 0.92;
+	const float NORMAL_THRESHOLD = 0.85;
 
+	log << "Computing non-ground points average spacing... ";
+
+	FT avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
+			nongroundPoints.begin(),
+			nongroundPoints.end(),
+			24);
+
+	log << avgSpacing << "\n";
 
 	for (size_t i = 0; i < nongroundPoints.size(); i++){
-		  Point3 &currentPoint = nongroundPoints[i];
-		  Vector3 &currentNormal = nongroundNormals[i];
-		output.push_back(std::make_pair(currentPoint, currentNormal));
+		output.push_back(std::make_pair(nongroundPoints[i], nongroundNormals[i]));
 	}
+
+	log << "Detecting planar surfaces..." << "\n";
+
 	// Instantiates shape detection engine.
 	Efficient_ransac ransac;
 	// Provides the input data.
@@ -160,10 +172,10 @@ void Odm25dMeshing::savePlanes(){
 	parameters.min_points = 500;
 
 	// Sets maximum Euclidean distance between a point and a shape.
-	parameters.epsilon = 0.15;
+	parameters.epsilon = avgSpacing / 2.0;
 
 	// Sets maximum Euclidean distance between points to be clustered.
-	parameters.cluster_epsilon = 0.15;
+	parameters.cluster_epsilon = avgSpacing / 2.0;
 
 	// Sets maximum normal deviation.
 	// 0.9 < dot(surface_normal, point_normal);
@@ -173,34 +185,20 @@ void Odm25dMeshing::savePlanes(){
 	ransac.detect(parameters);
 
 	// Prints number of detected shapes and unassigned points.
-	std::cout << ransac.shapes().end() - ransac.shapes().begin() << " detected shapes, "
+	log << ransac.shapes().end() - ransac.shapes().begin() << " detected shapes, "
 	 << ransac.number_of_unassigned_points()
-	 << " unassigned points." << std::endl;
+	 << " unassigned points.\n";
 
 	// Efficient_ransac::shapes() provides
 	// an iterator range to the detected shapes.
 	Efficient_ransac::Shape_range shapes = ransac.shapes();
 	Efficient_ransac::Shape_range::iterator it = shapes.begin();
 
-	std::filebuf fb;
-	fb.open(outputFile, std::ios::out);
-	std::ostream os(&fb);
-
-	os << "ply\n"
-	 << "format ascii 1.0\n"
-	 << "element vertex " << output.size() - ransac.number_of_unassigned_points() << "\n"
-	 << "property float x\n"
-	 << "property float y\n"
-	 << "property float z\n"
-	 << "element face 0\n"
-	 << "property list uchar int vertex_index\n"
-	 << "end_header\n";
-
 	while (it != shapes.end()) {
 		boost::shared_ptr<Efficient_ransac::Shape> shape = *it;
 		// Using Shape_base::info() for printing
 		// the parameters of the detected shape.
-		std::cout << (*it)->info() << std::endl;
+		log << (*it)->info() << "\n";
 
 
 		// Iterates through point indices assigned to each detected shape.
@@ -209,19 +207,67 @@ void Odm25dMeshing::savePlanes(){
 		while (index_it != (*it)->indices_of_assigned_points().end()) {
 		  // Retrieves point
 		  const Point_with_normal &p = *(output.begin() + (*index_it));
-		  os << p.first.x() << " " << p.first.y() << " " << p.first.z() << std::endl;
+		  groundPoints.push_back(p.first);
+		  groundNormals.push_back(p.second);
 		  index_it++;
 		}
 
 		// Proceeds with next detected shape.
 		it++;
 	}
-
-	std::cout << "Done" << std::endl;
 }
 
 void Odm25dMeshing::buildMesh(){
 	size_t pointCount = groundPoints.size();
+
+	log << "Computing points average spacing... ";
+
+	FT avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
+			groundPoints.begin(),
+			groundPoints.end(),
+			24);
+
+	log << avgSpacing << "\n";
+
+	log << "Grid Z sampling... ";
+
+	size_t pointCountBeforeGridSampling = pointCount;
+
+	double gridStep = avgSpacing / 2.0;
+	Kernel::Iso_cuboid_3 bbox = CGAL::bounding_box(groundPoints.begin(), groundPoints.end());
+	Vector3 boxDiag = bbox.max() - bbox.min();
+
+	int gridWidth = 1 + static_cast<unsigned>(boxDiag.x() / gridStep + 0.5);
+	int gridHeight = 1 + static_cast<unsigned>(boxDiag.y() / gridStep + 0.5);
+
+	#define KEY(i, j) (i * gridWidth + j)
+
+	std::unordered_map<int, Point3> grid;
+
+	for (size_t c = 0; c < pointCount; c++){
+		const Point3 &p = groundPoints[c];
+		Vector3 relativePos = p - bbox.min();
+		int i = static_cast<int>((relativePos.x() / gridStep + 0.5));
+		int j = static_cast<int>((relativePos.y() / gridStep + 0.5));
+
+		if ((i >= 0 && i < gridWidth) && (j >= 0 && j < gridHeight)){
+			int key = KEY(i, j);
+
+			if (grid.find(key) == grid.end()){
+				grid[key] = p;
+			}else if ((!flipFaces && p.z() > grid[key].z()) || (flipFaces && p.z() < grid[key].z())){
+				grid[key] = p;
+			}
+		}
+	}
+
+	std::vector<Point3> gridPoints;
+	for ( auto it = grid.begin(); it != grid.end(); ++it ){
+		gridPoints.push_back(it->second);
+	}
+
+	pointCount = gridPoints.size();
+	log << "sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
 
 	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
 	std::vector<Point3> simplifiedPoints;
@@ -229,8 +275,8 @@ void Odm25dMeshing::buildMesh(){
 	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
 
 	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
-			groundPoints.begin(),
-			groundPoints.end(),
+			gridPoints.begin(),
+			gridPoints.end(),
 			std::back_inserter(simplifiedPoints),
 			RETAIN_PERCENTAGE,
 			-1,
@@ -320,7 +366,7 @@ void Odm25dMeshing::printHelp() {
 	log.setIsPrintingInCout(true);
 
 	log << "Usage: odm_25dmeshing -inputFile [plyFile] [optional-parameters]\n";
-	log << "Create a 2.5D mesh from an oriented point cloud (points with normals) using a constrained delaunay triangulation. "
+	log << "Create a 2.5D mesh from an oriented, classified point cloud (points with normals and classification) using a constrained delaunay triangulation. "
 		<< "The program requires a path to an input PLY point cloud file, all other input parameters are optional.\n\n";
 
 	log << "	-inputFile	<path>	to PLY point cloud\n"

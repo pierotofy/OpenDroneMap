@@ -46,7 +46,7 @@ private:
 	 * \brief loadPointCloud    Builds a 2.5D mesh from loaded points
 	 */
 	void buildMesh();
-	void savePlanes();
+	void detectPlanes();
 
 	/*!
 	 * \brief printHelp     Prints help, explaining usage. Can be shown by calling the program with argument: "-help".
