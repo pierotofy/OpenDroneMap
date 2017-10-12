@@ -11,7 +11,6 @@
 #include "CGAL.hpp"
 #include "Logger.hpp"
 #include "PlyInterpreter.hpp"
-#include "PolyhedronBuilder.hpp"
 
 class Odm25dMeshing {
 public:
@@ -61,8 +60,11 @@ private:
 	std::string logFilePath = "odm_25dmeshing_log.txt";
 	unsigned int maxVertexCount = 100000;
 	unsigned int wlopIterations = 35;
-	std::vector<Point3> points;
-	std::vector<Vector3> normals;
+	std::vector<Point3> groundPoints;
+	std::vector<Vector3> groundNormals;
+	std::vector<Point3> nongroundPoints;
+	std::vector<Vector3> nongroundNormals;
+
 
 	bool flipFaces = false;
 };

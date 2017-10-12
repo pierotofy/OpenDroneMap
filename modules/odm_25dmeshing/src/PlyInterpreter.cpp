@@ -14,6 +14,8 @@ bool PlyInterpreter::is_applicable(CGAL::Ply_reader& reader) {
 void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 	FT x = (FT)0., y = (FT)0., z = (FT)0.,
 		nx = (FT)0., ny = (FT)0., nz = (FT)0.;
+	unsigned char classification = 2;
+	const char CLASS_GROUND = 2;
 
 	reader.assign (x, "x");
 	reader.assign (y, "y");
@@ -21,6 +23,13 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 	reader.assign (nx, "nx");
 	reader.assign (ny, "ny");
 	reader.assign (nz, "nz");
+
+	if (reader.does_tag_exist<unsigned char>("classification")){
+		reader.assign(classification, "classification");
+	}else if (!warnedClassificationMissing){
+		std::cout << "WARNING: Points are missing the classification tag, will treat all points as ground.\n";
+		warnedClassificationMissing = true;
+	}
 
 	Point3 p(x, y, z);
 	Vector3 n(nx, ny, nz);
@@ -31,9 +40,13 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 		zNormalsDirectionCount--;
 	}
 
-//	points.push_back(std::make_pair(p, n));
-	points.push_back(p);
-	normals.push_back(n);
+	if (classification == CLASS_GROUND){
+		groundPoints.push_back(p);
+		groundNormals.push_back(n);
+	}else{
+		nongroundPoints.push_back(p);
+		nongroundNormals.push_back(n);
+	}
 }
 
 bool PlyInterpreter::flip_faces(){

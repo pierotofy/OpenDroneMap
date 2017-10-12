@@ -1,6 +1,5 @@
 #include "Odm25dMeshing.hpp"
-#include <CGAL/Shape_detection_3.h>
-#include <CGAL/regularize_planes.h>
+
 
 int Odm25dMeshing::run(int argc, char **argv) {
 	log << logFilePath << "\n";
@@ -119,7 +118,7 @@ void Odm25dMeshing::parseArguments(int argc, char **argv) {
 }
 
 void Odm25dMeshing::loadPointCloud(){
-	  PlyInterpreter interpreter(points, normals);
+	  PlyInterpreter interpreter(groundPoints, groundNormals, nongroundPoints, nongroundNormals);
 
 	  std::ifstream in(inputFile);
 	  if (!in || !CGAL::read_ply_custom_points (in, interpreter, Kernel())){
@@ -129,64 +128,20 @@ void Odm25dMeshing::loadPointCloud(){
 
 	  flipFaces = interpreter.flip_faces();
 
-	  log << "Successfully loaded " << points.size() << " points from file\n";
+	  log << "Loaded " << groundPoints.size() << " ground points\n";
+	  log << "Loaded " << nongroundPoints.size() << " non-ground points\n";
 }
 
 void Odm25dMeshing::savePlanes(){
-	typedef std::pair<Point3, Vector3>         Point_with_normal;
-	typedef std::vector<Point_with_normal>     Pwn_vector;
-	typedef CGAL::First_of_pair_property_map<Point_with_normal>  Point_map;
-	typedef CGAL::Second_of_pair_property_map<Point_with_normal> Normal_map;
-	typedef CGAL::Shape_detection_3::Efficient_RANSAC_traits<Kernel, Pwn_vector, Point_map, Normal_map>            Traits;
-	typedef CGAL::Shape_detection_3::Efficient_RANSAC<Traits>   Efficient_ransac;
-	typedef CGAL::Shape_detection_3::Plane<Traits>              Plane;
-	typedef CGAL::Shape_detection_3::Cone<Traits>             Cone;
-	typedef CGAL::Shape_detection_3::Cylinder<Traits>         Cylinder;
-	typedef CGAL::Shape_detection_3::Sphere<Traits>           Sphere;
+	return;
 
-//	My_point_property_map ppmap(points);
-//	Tree tree(
-//		boost::counting_iterator<std::size_t>(0),
-//		boost::counting_iterator<std::size_t>(points.size()),
-//		Splitter(),
-//		TreeTraits(ppmap)
-//	  );
-//
 	Pwn_vector output;
-//	const unsigned int K = 8;
 	const float NORMAL_THRESHOLD = 0.92;
-//
-//	Distance tr_dist(ppmap);
-//
-//	// Initialize the search structure, and search all N points
-//	for (size_t i = 0; i < points.size(); i++){
-//	  Point3 &currentPoint = points[i];
-//	  Vector3 &currentNormal = normals[i];
-//	  unsigned short sameDirection = 0;
-//
-//	  Neighbor_search search(tree, currentPoint, K, 0, true, tr_dist);
-//
-//	  for(Neighbor_search::iterator it = search.begin(); it != search.end(); it++){
-//		  Vector3 &n = normals[it->first];
-//
-//		  FT dotProduct = currentNormal.x() * n.x() +
-//						  currentNormal.y() * n.y() +
-//						  currentNormal.z() * n.z();
-//
-//		  if (dotProduct >= NORMAL_THRESHOLD) sameDirection++;
-//		  else break;
-//	  }
-//
-//
-//	  if (sameDirection == K){
-//		  // Likely planar surface
-//		  output.push_back(std::make_pair(currentPoint, currentNormal));
-//	  }
-//	}
 
-	for (size_t i = 0; i < points.size(); i++){
-		  Point3 &currentPoint = points[i];
-		  Vector3 &currentNormal = normals[i];
+
+	for (size_t i = 0; i < nongroundPoints.size(); i++){
+		  Point3 &currentPoint = nongroundPoints[i];
+		  Vector3 &currentNormal = nongroundNormals[i];
 		output.push_back(std::make_pair(currentPoint, currentNormal));
 	}
 	// Instantiates shape detection engine.
@@ -195,10 +150,6 @@ void Odm25dMeshing::savePlanes(){
 	ransac.set_input(output);
 	// Registers detection of planes
 	ransac.add_shape_factory<Plane>();
-//	ransac.add_shape_factory<Cone>();
-//	ransac.add_shape_factory<Cylinder>();
-//	ransac.add_shape_factory<Sphere>();
-
 
 	// Sets parameters for shape detection.
 	Efficient_ransac::Parameters parameters;
@@ -270,7 +221,7 @@ void Odm25dMeshing::savePlanes(){
 }
 
 void Odm25dMeshing::buildMesh(){
-	size_t pointCount = points.size();
+	size_t pointCount = groundPoints.size();
 
 	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
 	std::vector<Point3> simplifiedPoints;
@@ -278,8 +229,8 @@ void Odm25dMeshing::buildMesh(){
 	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
 
 	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
-		 	points.begin(),
-			points.end(),
+			groundPoints.begin(),
+			groundPoints.end(),
 			std::back_inserter(simplifiedPoints),
 			RETAIN_PERCENTAGE,
 			-1,
