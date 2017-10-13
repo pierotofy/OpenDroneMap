@@ -138,8 +138,8 @@ void Odm25dMeshing::loadPointCloud(){
 void Odm25dMeshing::detectPlanes(){
 	if (nongroundPoints.size() < 3) return;
 
-	Pwn_vector output;
-	const float NORMAL_THRESHOLD = 0.85;
+	Pwn_vector input;
+	const float NORMAL_THRESHOLD = 0.90;
 
 	log << "Computing non-ground points average spacing... ";
 
@@ -151,7 +151,7 @@ void Odm25dMeshing::detectPlanes(){
 	log << avgSpacing << "\n";
 
 	for (size_t i = 0; i < nongroundPoints.size(); i++){
-		output.push_back(std::make_pair(nongroundPoints[i], nongroundNormals[i]));
+		input.push_back(std::make_pair(nongroundPoints[i], nongroundNormals[i]));
 	}
 
 	log << "Detecting planar surfaces..." << "\n";
@@ -159,7 +159,7 @@ void Odm25dMeshing::detectPlanes(){
 	// Instantiates shape detection engine.
 	Efficient_ransac ransac;
 	// Provides the input data.
-	ransac.set_input(output);
+	ransac.set_input(input);
 	// Registers detection of planes
 	ransac.add_shape_factory<Plane>();
 
@@ -168,7 +168,7 @@ void Odm25dMeshing::detectPlanes(){
 	// Sets probability to miss the largest primitive at each iteration.
 	parameters.probability = 0.05;
 
-	// Detect shapes with at least 500 points.
+	// Detect shapes with at least 500 points
 	parameters.min_points = 500;
 
 	// Sets maximum Euclidean distance between a point and a shape.
@@ -178,11 +178,13 @@ void Odm25dMeshing::detectPlanes(){
 	parameters.cluster_epsilon = avgSpacing / 2.0;
 
 	// Sets maximum normal deviation.
-	// 0.9 < dot(surface_normal, point_normal);
+	// NORMAL_THRESHOLD < dot(surface_normal, point_normal);
 	parameters.normal_threshold = NORMAL_THRESHOLD;
 
 	// Detects shapes
 	ransac.detect(parameters);
+
+	Pwn_vector assigned_points;
 
 	// Prints number of detected shapes and unassigned points.
 	log << ransac.shapes().end() - ransac.shapes().begin() << " detected shapes, "
@@ -200,13 +202,12 @@ void Odm25dMeshing::detectPlanes(){
 		// the parameters of the detected shape.
 		log << (*it)->info() << "\n";
 
-
 		// Iterates through point indices assigned to each detected shape.
 		std::vector<std::size_t>::const_iterator
 		  index_it = (*it)->indices_of_assigned_points().begin();
 		while (index_it != (*it)->indices_of_assigned_points().end()) {
 		  // Retrieves point
-		  const Point_with_normal &p = *(output.begin() + (*index_it));
+		  const Point_with_normal &p = *(input.begin() + (*index_it));
 		  groundPoints.push_back(p.first);
 		  groundNormals.push_back(p.second);
 		  index_it++;
@@ -229,7 +230,7 @@ void Odm25dMeshing::buildMesh(){
 
 	log << avgSpacing << "\n";
 
-	log << "Grid Z sampling... ";
+	log << "Grid Z sampling and smoothing... ";
 
 	size_t pointCountBeforeGridSampling = pointCount;
 
@@ -261,13 +262,51 @@ void Odm25dMeshing::buildMesh(){
 		}
 	}
 
+	std::vector<FT> bucket;
+	unsigned int smoothedPoints = 0;
+
+	for (int i = 1; i < gridWidth - 1; i++){
+		for (int j = 1; j < gridHeight - 1; j++){
+			int key = KEY(i, j);
+
+			if (grid.find(key) != grid.end()){
+				const Point3 &p = grid[key];
+
+				for (int ni = i - 1; ni < i + 2; ni++){
+					for (int nj = j - 1; nj < j + 2; nj++){
+						if (ni == i && nj == j) continue;
+						int nkey = KEY(ni, nj);
+
+						if (grid.find(nkey) != grid.end()) bucket.push_back(grid[nkey].z());
+					}
+				}
+
+				if (bucket.size() >= 5){
+					FT mean = accumulate(bucket.begin(), bucket.end(), 0.0) / bucket.size();
+					FT variance = 0.0;
+
+					for (unsigned int k = 0; k < bucket.size(); k++) variance += fabs(bucket[k] - mean);
+					variance /= bucket.size();
+
+					if (fabs(p.z() - mean) >= 3 * variance){
+						// Outlier
+						grid.erase(key);
+						smoothedPoints++;
+					}
+				}
+			}
+
+			bucket.clear();
+		}
+	}
+
 	std::vector<Point3> gridPoints;
 	for ( auto it = grid.begin(); it != grid.end(); ++it ){
 		gridPoints.push_back(it->second);
 	}
 
 	pointCount = gridPoints.size();
-	log << "sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
+	log << "smoothed " << smoothedPoints << " points, sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
 
 	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
 	std::vector<Point3> simplifiedPoints;
@@ -281,7 +320,7 @@ void Odm25dMeshing::buildMesh(){
 			RETAIN_PERCENTAGE,
 			-1,
 			wlopIterations,
-			false);
+			true);
 
 	pointCount = simplifiedPoints.size();
 
@@ -366,7 +405,7 @@ void Odm25dMeshing::printHelp() {
 	log.setIsPrintingInCout(true);
 
 	log << "Usage: odm_25dmeshing -inputFile [plyFile] [optional-parameters]\n";
-	log << "Create a 2.5D mesh from an oriented, classified point cloud (points with normals and classification) using a constrained delaunay triangulation. "
+	log << "Create a 2.5D mesh from an oriented, classified point cloud (points with normals, classification and heightaboveground property) using a constrained delaunay triangulation. "
 		<< "The program requires a path to an input PLY point cloud file, all other input parameters are optional.\n\n";
 
 	log << "	-inputFile	<path>	to PLY point cloud\n"

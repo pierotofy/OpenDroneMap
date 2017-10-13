@@ -6,7 +6,7 @@
 #include <limits>
 
 #include <CGAL/property_map.h>
-#include <CGAL/IO/read_ply_points.h>
+#include "read_ply_points.hpp"
 
 #include "CGAL.hpp"
 
@@ -18,7 +18,8 @@ class PlyInterpreter {
 
 	long zNormalsDirectionCount;
 
-	bool warnedClassificationMissing = false;
+	bool warnedClassificationMissing = false,
+		 warnedHagMissing = false;
 
 	public:
 	 PlyInterpreter (std::vector<Point3>& groundPoints,

@@ -16,6 +16,9 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 		nx = (FT)0., ny = (FT)0., nz = (FT)0.;
 	unsigned char classification = 2;
 	const char CLASS_GROUND = 2;
+	const FT HAG_THRESHOLD = 1.0; // 1 meter
+
+	FT hag = 0; // Height Above Ground
 
 	reader.assign (x, "x");
 	reader.assign (y, "y");
@@ -31,6 +34,13 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 		warnedClassificationMissing = true;
 	}
 
+	if (reader.does_tag_exist<FT>("heightaboveground")){
+		reader.assign(hag, "heightaboveground");
+	}else if (!warnedHagMissing){
+		std::cout << "WARNING: Points are missing the heightaboveground tag. No big deal.\n";
+		warnedHagMissing = true;
+	}
+
 	Point3 p(x, y, z);
 	Vector3 n(nx, ny, nz);
 
@@ -40,12 +50,16 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 		zNormalsDirectionCount--;
 	}
 
-	if (classification == CLASS_GROUND){
-		groundPoints.push_back(p);
-		groundNormals.push_back(n);
+	if (classification == CLASS_GROUND){ // Less than 1 meter
+		if (hag < HAG_THRESHOLD){
+			groundPoints.push_back(p);
+			groundNormals.push_back(n);
+		}
 	}else{
-		nongroundPoints.push_back(p);
-		nongroundNormals.push_back(n);
+		if (hag >= HAG_THRESHOLD){
+			nongroundPoints.push_back(p);
+			nongroundNormals.push_back(n);
+		}
 	}
 }
 
