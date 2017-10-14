@@ -128,6 +128,9 @@ class ODMeshingCell(ecto.Cell):
               steps.append({
                   "type": "filters.smrf"
                 })
+              steps.append({
+                  "type": "filters.hag"
+                })
 
               if upside_down:
                 steps.append({

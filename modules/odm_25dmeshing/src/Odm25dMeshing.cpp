@@ -184,8 +184,6 @@ void Odm25dMeshing::detectPlanes(){
 	// Detects shapes
 	ransac.detect(parameters);
 
-	Pwn_vector assigned_points;
-
 	// Prints number of detected shapes and unassigned points.
 	log << ransac.shapes().end() - ransac.shapes().begin() << " detected shapes, "
 	 << ransac.number_of_unassigned_points()
@@ -263,7 +261,7 @@ void Odm25dMeshing::buildMesh(){
 	}
 
 	std::vector<FT> bucket;
-	unsigned int smoothedPoints = 0;
+	unsigned int removedPoints = 0;
 
 	for (int i = 1; i < gridWidth - 1; i++){
 		for (int j = 1; j < gridHeight - 1; j++){
@@ -289,9 +287,9 @@ void Odm25dMeshing::buildMesh(){
 					variance /= bucket.size();
 
 					if (fabs(p.z() - mean) >= 3 * variance){
-						// Outlier
+						// Likely an odd one
 						grid.erase(key);
-						smoothedPoints++;
+						removedPoints++;
 					}
 				}
 			}
@@ -306,7 +304,7 @@ void Odm25dMeshing::buildMesh(){
 	}
 
 	pointCount = gridPoints.size();
-	log << "smoothed " << smoothedPoints << " points, sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
+	log << "smoothed " << removedPoints << " points, sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
 
 	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
 	std::vector<Point3> simplifiedPoints;
@@ -329,6 +327,10 @@ void Odm25dMeshing::buildMesh(){
 	}
 
 	log << "Vertex count is " << pointCount << "\n";
+
+	log << "Jet smoothing...";
+	CGAL::jet_smooth_point_set<Concurrency_tag>(simplifiedPoints.begin(), simplifiedPoints.end(), 24);
+	log << "OK\n";
 
 	typedef CDT::Point cgalPoint;
 	std::vector< std::pair<cgalPoint, size_t > > pts;

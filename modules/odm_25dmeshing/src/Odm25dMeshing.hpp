@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <queue>
 
-#include <CGAL/wlop_simplify_and_regularize_point_set.h>
-
 #include "CGAL.hpp"
 #include "Logger.hpp"
 #include "PlyInterpreter.hpp"
@@ -59,7 +57,7 @@ private:
 	std::string outputFile = "odm_25dmesh.ply";
 	std::string logFilePath = "odm_25dmeshing_log.txt";
 	unsigned int maxVertexCount = 100000;
-	unsigned int wlopIterations = 35;
+	unsigned int wlopIterations = 10;
 	std::vector<Point3> groundPoints;
 	std::vector<Vector3> groundNormals;
 	std::vector<Point3> nongroundPoints;
