@@ -1,5 +1,5 @@
 #include "Odm25dMeshing.hpp"
-
+#include <CGAL/grid_simplify_point_set.h>
 
 int Odm25dMeshing::run(int argc, char **argv) {
 	log << logFilePath << "\n";
@@ -241,11 +241,11 @@ void Odm25dMeshing::buildMesh(){
 
 	#define KEY(i, j) (i * gridWidth + j)
 
-	std::unordered_map<int, Point3> grid;
+	std::unordered_map<int, Point_with_normal> grid;
 
 	for (size_t c = 0; c < pointCount; c++){
-		const Point3 &p = groundPoints[c];
-		Vector3 relativePos = p - bbox.min();
+		const Point_with_normal &pwn = std::make_pair(groundPoints[c], groundNormals[c]);
+		Vector3 relativePos = pwn.first - bbox.min();
 		int i = static_cast<int>((relativePos.x() / gridStep + 0.5));
 		int j = static_cast<int>((relativePos.y() / gridStep + 0.5));
 
@@ -253,9 +253,9 @@ void Odm25dMeshing::buildMesh(){
 			int key = KEY(i, j);
 
 			if (grid.find(key) == grid.end()){
-				grid[key] = p;
-			}else if ((!flipFaces && p.z() > grid[key].z()) || (flipFaces && p.z() < grid[key].z())){
-				grid[key] = p;
+				grid[key] = pwn;
+			}else if ((!flipFaces && pwn.first.z() > grid[key].first.z()) || (flipFaces && pwn.first.z() < grid[key].first.z())){
+				grid[key] = pwn;
 			}
 		}
 	}
@@ -268,14 +268,14 @@ void Odm25dMeshing::buildMesh(){
 			int key = KEY(i, j);
 
 			if (grid.find(key) != grid.end()){
-				const Point3 &p = grid[key];
+				const Point_with_normal &pwn = grid[key];
 
 				for (int ni = i - 1; ni < i + 2; ni++){
 					for (int nj = j - 1; nj < j + 2; nj++){
 						if (ni == i && nj == j) continue;
 						int nkey = KEY(ni, nj);
 
-						if (grid.find(nkey) != grid.end()) bucket.push_back(grid[nkey].z());
+						if (grid.find(nkey) != grid.end()) bucket.push_back(grid[nkey].first.z());
 					}
 				}
 
@@ -286,9 +286,8 @@ void Odm25dMeshing::buildMesh(){
 					for (unsigned int k = 0; k < bucket.size(); k++) variance += fabs(bucket[k] - mean);
 					variance /= bucket.size();
 
-					if (fabs(p.z() - mean) >= 3 * variance){
-						// Replace Z value of outlier
-						grid[key] = Point3(p.x(), p.y(), mean);
+					if (fabs(pwn.first.z() - mean) >= 3 * variance){
+						grid.erase(key);
 						smoothedPoints++;
 					}
 				}
@@ -298,79 +297,66 @@ void Odm25dMeshing::buildMesh(){
 		}
 	}
 
-	std::vector<Point3> gridPoints;
+	std::vector<Point_with_normal> gridPoints;
+	std::vector<Point3> gridPointsWithoutNormals;
+
 	for ( auto it = grid.begin(); it != grid.end(); ++it ){
 		gridPoints.push_back(it->second);
+		gridPointsWithoutNormals.push_back(it->second.first);
 	}
 
 	pointCount = gridPoints.size();
-	log << "smoothed " << smoothedPoints << " points, sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
+	log << "smoothed " << smoothedPoints << " points, sampled " << pointCount << " points\n";
 
-	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
-	std::vector<Point3> simplifiedPoints;
+//	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
+//	std::vector<Point_with_normal> simplifiedPoints;
+//
+//	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
+//
+//	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
+//			gridPoints.begin(),
+//			gridPoints.end(),
+//			std::back_inserter(simplifiedPoints),
+//			CGAL::First_of_pair_property_map<Point_with_normal>(),
+//			RETAIN_PERCENTAGE,
+//			-1,
+//			wlopIterations,
+//			true);
+//
+//	pointCount = simplifiedPoints.size();
+//
+//	if (pointCount < 3){
+//		throw Odm25dMeshingException("Not enough points");
+//	}
+//
+//	log << "Vertex count is " << pointCount << "\n";
 
-	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
+//	avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
+//			simplifiedPoints.begin(),
+//			simplifiedPoints.end(),
+//		24);
 
-	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
-			gridPoints.begin(),
-			gridPoints.end(),
-			std::back_inserter(simplifiedPoints),
-			RETAIN_PERCENTAGE,
-			-1,
-			wlopIterations,
-			true);
+	  size_t pointBeforeGridSimplify = gridPoints.size();
+	  gridPoints.erase(CGAL::grid_simplify_point_set(gridPoints.begin(), gridPoints.end(),
+			  CGAL::First_of_pair_property_map<Point_with_normal>(),
+			  avgSpacing * 2),
+			  gridPoints.end());
+	  log << "Removed " << (pointBeforeGridSimplify - gridPoints.size()) << " points with grid simplification\n";
 
-	pointCount = simplifiedPoints.size();
+	Polyhedron poly;
 
-	if (pointCount < 3){
-		throw Odm25dMeshingException("Not enough points");
+	if (!CGAL::poisson_surface_reconstruction_delaunay
+	      (gridPoints.begin(), gridPoints.end(),
+	       CGAL::First_of_pair_property_map<Point_with_normal>(),
+	       CGAL::Second_of_pair_property_map<Point_with_normal>(),
+	       poly, avgSpacing))
+	{
+		throw Odm25dMeshingException("Failed to generate poisson surface reconstruction");
 	}
 
-	log << "Vertex count is " << pointCount << "\n";
-
-    log << "Jet smoothing... ";
-    for (size_t i = 1; i <= 5; i++){
-    	log << i << "...";
-    	CGAL::jet_smooth_point_set<Concurrency_tag>(simplifiedPoints.begin(), simplifiedPoints.end(), 24);
-    }
-    log << "OK\n";
-
-	typedef CDT::Point cgalPoint;
-	std::vector< std::pair<cgalPoint, size_t > > pts;
-	try{
-		pts.reserve(pointCount);
-	} catch (const std::bad_alloc&){
-		throw Odm25dMeshingException("Not enough memory");
-	}
-
-	for (size_t i = 0; i < pointCount; ++i){
-		pts.push_back(std::make_pair(cgalPoint(simplifiedPoints[i].x(), simplifiedPoints[i].y()), i));
-	}
-
-	log << "Computing delaunay triangulation... ";
-
-	CDT cdt;
-	cdt.insert(pts.begin(), pts.end());
-
-	unsigned int numberOfTriangles = static_cast<unsigned >(cdt.number_of_faces());
-	unsigned int triIndexes = numberOfTriangles*3;
-
-	if (numberOfTriangles == 0) throw Odm25dMeshingException("No triangles in resulting mesh");
-
-	log << numberOfTriangles << " triangles\n";
-
-	std::vector<float> vertices;
-	std::vector<int> vertexIndices;
-
-	try{
-		vertices.reserve(pointCount);
-		vertexIndices.reserve(triIndexes);
-	} catch (const std::bad_alloc&){
-		throw Odm25dMeshingException("Not enough memory");
-	}
-
-
-	log << "Saving mesh to file.\n";
+    typedef typename Polyhedron::Vertex_const_iterator VCI;
+    typedef typename Polyhedron::Facet_const_iterator FCI;
+    typedef typename Polyhedron::Halfedge_around_facet_const_circulator HFCC;
 
 	std::filebuf fb;
 	fb.open(outputFile, std::ios::out);
@@ -378,29 +364,110 @@ void Odm25dMeshing::buildMesh(){
 
 	os << "ply\n"
 	   << "format ascii 1.0\n"
-	   << "element vertex " << pointCount << "\n"
+	   << "element vertex " << poly.size_of_vertices() << "\n"
 	   << "property float x\n"
 	   << "property float y\n"
 	   << "property float z\n"
-	   << "element face " << numberOfTriangles << "\n"
+	   << "element face " << poly.size_of_facets() << "\n"
 	   << "property list uchar int vertex_index\n"
 	   << "end_header\n";
 
-	for (size_t i = 0; i < pointCount; ++i){
-		os << simplifiedPoints[i].x() << " " << simplifiedPoints[i].y() << " " << simplifiedPoints[i].z() << std::endl;
+	for (auto it = poly.vertices_begin(); it != poly.vertices_end(); it++){
+		os << it->point().x() << " " << it->point().y() << " " << it->point().z() << std::endl;
 	}
 
-	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
-		os << 3 << " ";
+	typedef CGAL::Inverse_index<VCI> Index;
+	Index index(poly.vertices_begin(), poly.vertices_end());
 
-		if (flipFaces){
-			os << face->vertex(2)->info() << " " << face->vertex(1)->info() << " " << face->vertex(0)->info() << std::endl;
-		}else{
-			os << face->vertex(0)->info() << " " << face->vertex(1)->info() << " " << face->vertex(2)->info() << std::endl;
+	std::stack<int> s;
+
+	for( FCI fi = poly.facets_begin(); fi != poly.facets_end(); ++fi) {
+		HFCC hc = fi->facet_begin();
+		HFCC hc_end = hc;
+
+		os << circulator_size(hc) << " ";
+		do {
+			s.push(index[VCI(hc->vertex())]);
+			++hc;
+		} while( hc != hc_end);
+
+		while(!s.empty()){
+			os << s.top() << " ";
+			s.pop();
 		}
+
+		os << "\n";
 	}
 
 	fb.close();
+
+//
+//	typedef CDT::Point cgalPoint;
+//	std::vector< std::pair<cgalPoint, size_t > > pts;
+//	try{
+//		pts.reserve(pointCount);
+//	} catch (const std::bad_alloc&){
+//		throw Odm25dMeshingException("Not enough memory");
+//	}
+//
+//	for (size_t i = 0; i < pointCount; ++i){
+//		pts.push_back(std::make_pair(cgalPoint(simplifiedPoints[i].x(), simplifiedPoints[i].y()), i));
+//	}
+//
+//	log << "Computing delaunay triangulation... ";
+//
+//	CDT cdt;
+//	cdt.insert(pts.begin(), pts.end());
+//
+//	unsigned int numberOfTriangles = static_cast<unsigned >(cdt.number_of_faces());
+//	unsigned int triIndexes = numberOfTriangles*3;
+//
+//	if (numberOfTriangles == 0) throw Odm25dMeshingException("No triangles in resulting mesh");
+//
+//	log << numberOfTriangles << " triangles\n";
+//
+//	std::vector<float> vertices;
+//	std::vector<int> vertexIndices;
+//
+//	try{
+//		vertices.reserve(pointCount);
+//		vertexIndices.reserve(triIndexes);
+//	} catch (const std::bad_alloc&){
+//		throw Odm25dMeshingException("Not enough memory");
+//	}
+//
+//
+//	log << "Saving mesh to file.\n";
+//
+//	std::filebuf fb;
+//	fb.open(outputFile, std::ios::out);
+//	std::ostream os(&fb);
+//
+//	os << "ply\n"
+//	   << "format ascii 1.0\n"
+//	   << "element vertex " << pointCount << "\n"
+//	   << "property float x\n"
+//	   << "property float y\n"
+//	   << "property float z\n"
+//	   << "element face " << numberOfTriangles << "\n"
+//	   << "property list uchar int vertex_index\n"
+//	   << "end_header\n";
+//
+//	for (size_t i = 0; i < pointCount; ++i){
+//		os << simplifiedPoints[i].x() << " " << simplifiedPoints[i].y() << " " << simplifiedPoints[i].z() << std::endl;
+//	}
+//
+//	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
+//		os << 3 << " ";
+//
+//		if (flipFaces){
+//			os << face->vertex(2)->info() << " " << face->vertex(1)->info() << " " << face->vertex(0)->info() << std::endl;
+//		}else{
+//			os << face->vertex(0)->info() << " " << face->vertex(1)->info() << " " << face->vertex(2)->info() << std::endl;
+//		}
+//	}
+//
+//	fb.close();
 
 	log << "Successfully wrote mesh to: " << outputFile << "\n";
 }

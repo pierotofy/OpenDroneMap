@@ -88,7 +88,7 @@ class ODMeshingCell(ecto.Cell):
               log.ODM_DEBUG('Writing ODM 2.5D Mesh file in: %s' % tree.odm_25dmesh)
 
               upside_down = self.is_point_cloud_upside_down(infile)
-              log.ODM_INFO('%s is upside down: ' % 'YES' if upside_down else 'NO')
+              log.ODM_INFO('Point cloud is upside down: ' + ('YES' if upside_down else 'NO'))
 
               # Use PDAL to:
               # 1. Do statistical outliers removal
