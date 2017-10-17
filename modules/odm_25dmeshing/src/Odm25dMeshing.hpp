@@ -4,11 +4,13 @@
 #include <string>
 #include <iostream>
 #include <unordered_map>
-#include <queue>
+#include <cstring>
+#include <algorithm>
 
-#include "CGAL.hpp"
+#include <pcl/io/ply_io.h>
+#include <pcl/PCLPointCloud2.h>
+
 #include "Logger.hpp"
-#include "PlyInterpreter.hpp"
 
 class Odm25dMeshing {
 public:
@@ -58,11 +60,8 @@ private:
 	std::string logFilePath = "odm_25dmeshing_log.txt";
 	unsigned int maxVertexCount = 100000;
 	unsigned int wlopIterations = 10;
-	std::vector<Point3> groundPoints;
-	std::vector<Vector3> groundNormals;
-	std::vector<Point3> nongroundPoints;
-	std::vector<Vector3> nongroundNormals;
-
+	pcl::PointCloud<pcl::PointNormal> groundPoints;
+	pcl::PointCloud<pcl::PointNormal> nongroundPoints;
 
 	bool flipFaces = false;
 };
