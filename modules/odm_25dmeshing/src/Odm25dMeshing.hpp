@@ -10,13 +10,24 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/PCLPointCloud2.h>
 
+
+#include <pcl/point_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
+
 #include "Logger.hpp"
 
 class Odm25dMeshing {
 public:
 	Odm25dMeshing() :
-			log(false) {};
-	~Odm25dMeshing() {};
+			log(false) {
+	}
+	;
+	~Odm25dMeshing() {
+	}
+	;
 
 	/*!
 	 * \brief   run     Runs the meshing functionality using the provided input arguments.

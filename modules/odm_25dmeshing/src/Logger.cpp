@@ -1,31 +1,25 @@
 #include "Logger.hpp"
 
-
-Logger::Logger(bool isPrintingInCout) : isPrintingInCout_(isPrintingInCout)
-{
-
-}
-
-Logger::~Logger()
-{
+Logger::Logger(bool isPrintingInCout) :
+		isPrintingInCout_(isPrintingInCout) {
 
 }
 
-void Logger::printToFile(std::string filePath)
-{
-    std::ofstream file(filePath.c_str(), std::ios::binary);
-    file << logStream_.str();
-    file.close();
+Logger::~Logger() {
+
 }
 
-bool Logger::isPrintingInCout() const
-{
-    return isPrintingInCout_;
+void Logger::printToFile(std::string filePath) {
+	std::ofstream file(filePath.c_str(), std::ios::binary);
+	file << logStream_.str();
+	file.close();
 }
 
-void Logger::setIsPrintingInCout(bool isPrintingInCout)
-{
-    isPrintingInCout_ = isPrintingInCout;
+bool Logger::isPrintingInCout() const {
+	return isPrintingInCout_;
 }
 
+void Logger::setIsPrintingInCout(bool isPrintingInCout) {
+	isPrintingInCout_ = isPrintingInCout;
+}
 

@@ -22,5 +22,5 @@ aux_source_directory("./src" SRC_LIST)
 add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 # Link
-target_link_libraries(odm_25dmeshing ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_SURFACE_LIBRARIES})
+target_link_libraries(odm_25dmeshing ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_SURFACE_LIBRARIES} ${PCL_SAMPLE_CONSENSUS} ${PCL_SEGMENTATION} pcl_segmentation pcl_filters)
 
