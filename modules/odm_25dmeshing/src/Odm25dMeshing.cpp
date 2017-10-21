@@ -137,11 +137,10 @@ void Odm25dMeshing::parseArguments(int argc, char **argv) {
 
 void Odm25dMeshing::loadPointCloud() {
 	const char CLASS_GROUND = 2;
-	const float HAG_THRESHOLD = 1.0; // 1 meter
 
 	pcl::PCLPointCloud2 blob;
 
-	log << "Loading point cloud...";
+	log << "Loading point cloud... ";
 
 	if (pcl::io::loadPLYFile(inputFile.c_str(), blob) == -1) {
 		throw Odm25dMeshingException("Error when reading from: " + inputFile);
@@ -152,8 +151,7 @@ void Odm25dMeshing::loadPointCloud() {
 	log << "Scanning fields... ";
 
 	pcl::PCLPointField *posX = NULL, *posY = NULL, *posZ = NULL,
-			*normalX = NULL, *normalY = NULL, *normalZ = NULL, *classification =
-					NULL, *hag = NULL;
+			*normalX = NULL, *normalY = NULL, *normalZ = NULL, *classification = NULL;
 
 #define ASSIGN(_name, _field) if (blob.fields[i].name == _name){ _field = &blob.fields[i]; log << _name << " "; continue; }
 
@@ -168,7 +166,6 @@ void Odm25dMeshing::loadPointCloud() {
 		ASSIGN("ny", normalY);
 		ASSIGN("nz", normalZ);
 		ASSIGN("classification", classification);
-		ASSIGN("heightaboveground", hag);
 	}
 
 	log << "OK\n";
@@ -188,19 +185,13 @@ void Odm25dMeshing::loadPointCloud() {
 		throw Odm25dMeshingException(
 				"Only float and float64 types are supported for normal information");
 
-	if (classification->datatype != pcl::PCLPointField::UINT8)
-		classification = NULL;
-	if (classification == NULL)
-		log
-				<< "WARNING: Classification attribute missing. Will treat all points as ground.\n";
-	if (hag == NULL)
-		log
-				<< "WARNING: heightaboveground attribute missing. Resulting mesh might have more artifacts.\n";
+	if (classification->datatype != pcl::PCLPointField::UINT8) classification = NULL;
+	if (classification == NULL) log << "WARNING: Classification attribute missing. Will treat all points as ground.\n";
 
 	uint8_t pointClass = 2;
-	float pointHag = 0.0f;
 
 	pcl::PointCloud<pcl::PointNormal> allPoints;
+
 	allPoints.reserve(blob.width * blob.height);
 
 	for (size_t point_step = 0, i = 0; point_step < blob.data.size();
@@ -241,61 +232,151 @@ void Odm25dMeshing::loadPointCloud() {
 					+ classification->offset));
 		}
 
-		if (hag != NULL) {
-			if (hag->datatype == pcl::PCLPointField::FLOAT64)
-				pointHag = *(reinterpret_cast<double *>(point + hag->offset));
-			if (hag->datatype == pcl::PCLPointField::FLOAT32)
-				pointHag = *(reinterpret_cast<float *>(point + hag->offset));
-		}
-
 		if (pointClass == CLASS_GROUND) {
-			if (pointHag < HAG_THRESHOLD) {
-				groundPoints.push_back(allPoints[i]);
-			}
+			groundPoints->push_back(allPoints[i]);
 		} else {
-			if (pointHag >= HAG_THRESHOLD) {
-				nongroundPoints.push_back(allPoints[i]);
-			}
+			nongroundPoints->push_back(allPoints[i]);
 		}
 	}
 
 	//	  flipFaces = interpreter.flip_faces();
 
-	log << "Loaded " << groundPoints.size() << " ground points\n";
-	log << "Loaded " << nongroundPoints.size() << " non-ground points\n";
+	log << "Loaded " << groundPoints->size() << " ground points\n";
+	log << "Loaded " << nongroundPoints->size() << " non-ground points\n";
 }
 
 // Detect planes from non-ground points
 // and place them into the ground points (this just to avoid
 // creating a new vector)
 void Odm25dMeshing::detectPlanes() {
-	if (nongroundPoints.size() < 3) return;
+	log << "Extracting clusters... ";
 
-	pcl::PointCloud<pcl::PointNormal>::Ptr nongroundPoints_p(&nongroundPoints);
+	pcl::search::Search<pcl::PointNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointNormal> > (new pcl::search::KdTree<pcl::PointNormal>);
+	pcl::RegionGrowing<pcl::PointNormal, pcl::PointNormal> reg;
+	reg.setMinClusterSize (100);
+	reg.setMaxClusterSize (nongroundPoints->size());
+	reg.setSearchMethod (tree);
+	reg.setNumberOfNeighbours (30);
+	reg.setInputCloud (nongroundPoints);
+	reg.setInputNormals (nongroundPoints);
 
-	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-	// Create the segmentation object
-	pcl::SACSegmentation<pcl::PointNormal> seg;
-	// Optional
-	seg.setOptimizeCoefficients (true);
-	// Mandatory
-	seg.setModelType (pcl::SACMODEL_PLANE);
-	seg.setMethodType (pcl::SAC_RANSAC);
-	seg.setDistanceThreshold (0.3);
+	reg.setSmoothnessThreshold (45 / 180.0 * M_PI);
+	reg.setCurvatureThreshold (3);
 
-	seg.setInputCloud (nongroundPoints_p);
-	seg.segment (*inliers, *coefficients);
 
-	pcl::PointCloud<pcl::PointNormal> filtered;
-	pcl::ExtractIndices<pcl::PointNormal> extract;
-	extract.setInputCloud (nongroundPoints_p);
-	extract.setIndices (inliers);
-	extract.setNegative (false);
-	extract.filter (filtered);
+	std::vector <pcl::PointIndices> clusters;
+	reg.extract (clusters);
 
-	pcl::io::savePLYFile("nonground.ply", nongroundPoints);
-	pcl::io::savePLYFile("filtered.ply", filtered);
+	log << " found " << clusters.size() << " clusters\n";
+	log << "Computing per segment coplanarity...\n";
+
+	const int K = 10;
+	const float COPLANAR_THRESH_1 = 25.0f,
+				COPLANAR_THRESH_2 = 6.0;
+
+	std::vector<int> pointIdxNKNSearch(K);
+	std::vector<float> pointNKNSquaredDistance(K);
+
+	for (size_t cluster_idx = 0; cluster_idx < clusters.size(); cluster_idx++){
+		pcl::PointCloud<pcl::PointNormal>::Ptr cluster_cloud(new pcl::PointCloud<pcl::PointNormal>(*nongroundPoints, clusters[cluster_idx].indices));
+		pcl::KdTreeFLANN<pcl::PointNormal> kdtree;
+		kdtree.setInputCloud(cluster_cloud);
+
+		size_t coplanar_points = 0;
+		size_t points_in_cluster = cluster_cloud.get()->points.size();
+
+		for (auto point = cluster_cloud.get()->points.begin(); point != cluster_cloud.get()->points.end(); point++){
+			bool coplanar = false;
+
+			// Find neighbors
+			if (kdtree.nearestKSearch(*point, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0){
+				// Compute centroid
+				float mx = 0.0f, my = 0.0f, mz = 0.0f;
+				size_t num_points = pointIdxNKNSearch.size();
+
+				for (size_t k = 0; k < num_points; k++){
+					const pcl::PointNormal &p = cluster_cloud.get()->at(pointIdxNKNSearch[k]);
+					mx += p.x;
+					my += p.y;
+					mz += p.z;
+				}
+
+				mx /= num_points;
+				my /= num_points;
+				mz /= num_points;
+
+				// compute covariance
+				Eigen::MatrixXf cov(3, K);
+
+				std::vector<int>::iterator idx;
+				for (size_t k = 0; k < num_points; k++){
+					const pcl::PointNormal &p = cluster_cloud.get()->at(pointIdxNKNSearch[k]);
+
+					cov(0, k) = p.x - mx;
+					cov(1, k) = p.y - my;
+					cov(2, k) = p.z - mz;
+				}
+
+				cov = cov * cov.transpose() / (num_points - 1);
+
+				// Perform eigen decomposition
+				Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> solver(cov);
+				if (solver.info() == Eigen::Success){
+					auto ev = solver.eigenvalues();
+					coplanar = (ev[1] > COPLANAR_THRESH_1 * ev[0]) && (COPLANAR_THRESH_2 * ev[1] > ev[2]);
+				}else{
+					log << "WARNING: Cannot perform eigen decomposition for " << cov << "\n";
+				}
+			}
+
+			if (coplanar) coplanar_points++;
+		}
+
+		float coplanar_ratio = (float)coplanar_points / (float)points_in_cluster;
+		log << "Segment #" << cluster_idx << " (points: " << points_in_cluster << ", coplanar: " << (coplanar_points) << " (" << (coplanar_ratio * 100.0f) << "%)\n";
+
+		// At least 5% of points are coplanar in this segment
+		// probably a man-made structure
+		if (coplanar_ratio >= 0.05f){
+			for (auto point_idx = clusters[cluster_idx].indices.begin (); point_idx != clusters[cluster_idx].indices.end (); point_idx++){
+				groundPoints->push_back(nongroundPoints->points[*point_idx]);
+			}
+		}else{
+			// Tree, or something else
+
+			// Do nothing
+		}
+	}
+
+	pcl::io::savePLYFile("filtered.ply", *groundPoints);
+
+//	if (nongroundPoints->size() < 3) return;
+//
+//	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+//	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+//	// Create the segmentation object
+//	pcl::SACSegmentationFromNormals<pcl::PointNormal, pcl::PointNormal> seg;
+//	// Optional
+//	seg.setOptimizeCoefficients (true);
+//	// Mandatory
+//	seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
+//	seg.setMethodType (pcl::SAC_RANSAC);
+//	seg.setDistanceThreshold (0.3);
+//	seg.setNormalDistanceWeight(0.1);
+//
+//	seg.setInputCloud (nongroundPoints);
+//	seg.setInputNormals(nongroundPoints);
+//	seg.segment (*inliers, *coefficients);
+//
+//	pcl::PointCloud<pcl::PointNormal> filtered;
+//	pcl::ExtractIndices<pcl::PointNormal> extract;
+//	extract.setInputCloud (nongroundPoints);
+//	extract.setIndices (inliers);
+//	extract.setNegative (false);
+//	extract.filter (filtered);
+//
+//	pcl::io::savePLYFile("nonground.ply", *nongroundPoints);
+//	pcl::io::savePLYFile("filtered.ply", filtered);
 
 	log << "Done!\n";
 }

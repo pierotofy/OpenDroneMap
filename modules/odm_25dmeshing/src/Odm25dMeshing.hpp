@@ -11,18 +11,25 @@
 #include <pcl/PCLPointCloud2.h>
 
 
-#include <pcl/point_types.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/search/search.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/segmentation/region_growing.h>
+#include <pcl/segmentation/impl/region_growing.hpp>
+
+#include <Eigen/Dense>
 
 #include "Logger.hpp"
 
 class Odm25dMeshing {
 public:
 	Odm25dMeshing() :
-			log(false) {
+			log(false), groundPoints( new pcl::PointCloud<pcl::PointNormal> ), nongroundPoints( new pcl::PointCloud<pcl::PointNormal> ) {
 	}
 	;
 	~Odm25dMeshing() {
@@ -71,8 +78,8 @@ private:
 	std::string logFilePath = "odm_25dmeshing_log.txt";
 	unsigned int maxVertexCount = 100000;
 	unsigned int wlopIterations = 10;
-	pcl::PointCloud<pcl::PointNormal> groundPoints;
-	pcl::PointCloud<pcl::PointNormal> nongroundPoints;
+	pcl::PointCloud<pcl::PointNormal>::Ptr groundPoints;
+	pcl::PointCloud<pcl::PointNormal>::Ptr nongroundPoints;
 
 	bool flipFaces = false;
 };
