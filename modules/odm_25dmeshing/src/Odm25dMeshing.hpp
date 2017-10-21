@@ -22,8 +22,6 @@
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/impl/region_growing.hpp>
 
-#include <Eigen/Dense>
-
 #include "Logger.hpp"
 
 class Odm25dMeshing {
