@@ -1,4 +1,5 @@
 #include "Odm25dMeshing.hpp"
+#include <pcl/segmentation/extract_clusters.h>
 
 int Odm25dMeshing::run(int argc, char **argv) {
 	log << logFilePath << "\n";
@@ -15,7 +16,11 @@ int Odm25dMeshing::run(int argc, char **argv) {
 
 		loadPointCloud();
 
-		mergeAndSmoothPlanarPoints(nongroundPoints);
+		// TODO:
+		// - Cleanup code
+		// - Remove HAG
+
+		mergePlanarPoints(nongroundPoints);
 
 		createMesh();
 
@@ -246,23 +251,24 @@ void Odm25dMeshing::loadPointCloud() {
 		if (pointClass == CLASS_GROUND) {
 			meshPoints->push_back(allPoints[i]);
 		} else {
-			if (pointHag >= HAG_THRESHOLD) {
-				nongroundPoints->push_back(allPoints[i]);
-			}else{
-				neargroundPoints->push_back(allPoints[i]);
-			}
+			nongroundPoints->push_back(allPoints[i]);
+//			if (pointHag >= HAG_THRESHOLD) {
+//				nongroundPoints->push_back(allPoints[i]);
+//			}else{
+//				neargroundPoints->push_back(allPoints[i]);
+//			}
 		}
 	}
 
-	log << "Loaded " << meshPoints->size() << " points for meshing\n";
+	log << "Loaded " << meshPoints->size() << " ground points\n";
 	log << "Loaded " << nongroundPoints->size() << " non ground points\n";
-	log << "Loaded " << neargroundPoints->size() << " near ground points\n";
+//	log << "Loaded " << neargroundPoints->size() << " near ground points\n";
 }
 
 // Merges ground with nonground points
 // while attempting to detect and smooth planar surfaces (ex. buildings)
 // and optionally discarding non planar surfaces (ex. trees)
-void Odm25dMeshing::mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>::Ptr points) {
+void Odm25dMeshing::mergePlanarPoints(pcl::PointCloud<pcl::PointNormal>::Ptr points){
 	if (points->size() < 3) return;
 
 	const int K = 30,
@@ -272,6 +278,8 @@ void Odm25dMeshing::mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>
 	log << "Extracting clusters... ";
 
 	pcl::search::Search<pcl::PointNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointNormal> > (new pcl::search::KdTree<pcl::PointNormal>);
+	std::vector <pcl::PointIndices> clusters;
+
 	pcl::RegionGrowing<pcl::PointNormal, pcl::PointNormal> reg;
 	reg.setMinClusterSize (MIN_CLUSTER_SIZE);
 	reg.setMaxClusterSize (points->size());
@@ -279,13 +287,12 @@ void Odm25dMeshing::mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>
 	reg.setNumberOfNeighbours (K);
 	reg.setInputCloud (points);
 	reg.setInputNormals (points);
-
 	reg.setSmoothnessThreshold (45 / 180.0 * M_PI);
-	reg.setCurvatureThreshold (3);
-
-
-	std::vector <pcl::PointIndices> clusters;
+	reg.setCurvatureThreshold (1);
+	reg.setResidualTestFlag(true);
 	reg.extract (clusters);
+
+	pcl::io::savePLYFile("colored.ply", *reg.getColoredCloud());
 
 	log << " found " << clusters.size() << " clusters\n";
 	log << "Detecting per segment surfaces... \n";
@@ -330,16 +337,7 @@ void Odm25dMeshing::mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>
 		// At least SURFACE_RATIO_THRESHOLD% of points
 		// in this segment are probably a man-made structure
 		if (surface_points >= surface_points_needed && surface_points >= MIN_CLUSTER_SIZE){
-			pcl::MovingLeastSquares<pcl::PointNormal, pcl::PointNormal> mls;
-			pcl::PointCloud<pcl::PointNormal> mls_points;
-
-			mls.setInputCloud(cluster_cloud);
-			mls.setPolynomialFit (true);
-			mls.setSearchMethod (tree);
-			mls.setSearchRadius (0.2);
-			mls.process (mls_points);
-
-			(*meshPoints) += mls_points;
+			(*meshPoints) += *cluster_cloud;
 		}else{
 			// Tree, or something else
 
@@ -349,7 +347,7 @@ void Odm25dMeshing::mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>
 }
 
 void Odm25dMeshing::createMesh() {
-    // Attempt to calculate the depth of the tree if unspecified
+//    // Attempt to calculate the depth of the tree if unspecified
     if (treeDepth == 0) treeDepth = calcTreeDepth(meshPoints->size());
 
     log << "Octree depth used for reconstruction is: " << treeDepth << "\n";
@@ -368,7 +366,6 @@ void Odm25dMeshing::createMesh() {
     log << "Reconstruction complete:\n";
     log << "Vertex count: " << mesh->cloud.width * mesh->cloud.height << "\n";
     log << "Triangle count: " << mesh->polygons.size() << "\n\n";
-
 }
 
 void Odm25dMeshing::decimateMesh(){

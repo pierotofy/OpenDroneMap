@@ -29,7 +29,6 @@ public:
 			log(false),
 			meshPoints( new pcl::PointCloud<pcl::PointNormal> ),
 			nongroundPoints( new pcl::PointCloud<pcl::PointNormal> ),
-			neargroundPoints( new pcl::PointCloud<pcl::PointNormal> ),
 		    meshCreator(pcl::Poisson<pcl::PointNormal>::Ptr(new pcl::Poisson<pcl::PointNormal>())),
 		    mesh(pcl::PolygonMeshPtr(new pcl::PolygonMesh)),
 		    decimatedMesh(pcl::PolygonMeshPtr(new pcl::PolygonMesh))
@@ -61,7 +60,7 @@ private:
 	 */
 	void loadPointCloud();
 	void createMesh();
-	void mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>::Ptr points);
+	void mergePlanarPoints(pcl::PointCloud<pcl::PointNormal>::Ptr points);
 
     /*!
      * \brief writePlyFile  Writes the mesh to file on the Ply format.
@@ -104,7 +103,7 @@ private:
 
 	pcl::PointCloud<pcl::PointNormal>::Ptr meshPoints;
 	pcl::PointCloud<pcl::PointNormal>::Ptr nongroundPoints;
-	pcl::PointCloud<pcl::PointNormal>::Ptr neargroundPoints;
+//	pcl::PointCloud<pcl::PointNormal>::Ptr neargroundPoints;
 
     pcl::Poisson<pcl::PointNormal>::Ptr meshCreator;    /**< PCL poisson meshing class. */
     pcl::PolygonMeshPtr mesh;                      /**< PCL polygon mesh. */
