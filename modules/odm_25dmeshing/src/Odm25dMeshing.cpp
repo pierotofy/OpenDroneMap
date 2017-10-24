@@ -15,9 +15,13 @@ int Odm25dMeshing::run(int argc, char **argv) {
 
 		loadPointCloud();
 
-		detectPlanes();
+		mergeAndSmoothPlanarPoints(nongroundPoints);
 
-		buildMesh();
+		createMesh();
+
+        decimateMesh();
+
+        writePlyFile();
 
 	} catch (const Odm25dMeshingException& e) {
 		log.setIsPrintingInCout(true);
@@ -49,38 +53,34 @@ void Odm25dMeshing::parseArguments(int argc, char **argv) {
 			exit(0);
 		} else if (argument == "-verbose") {
 			log.setIsPrintingInCout(true);
-		} else if (argument == "-maxVertexCount" && argIndex < argc) {
+		} else if(argument == "-maxVertexCount" && argIndex < argc){
 			++argIndex;
-			if (argIndex >= argc)
-				throw Odm25dMeshingException(
-						"Argument '" + argument
-								+ "' expects 1 more input following it, but no more inputs were provided.");
+			if (argIndex >= argc) throw Odm25dMeshingException("Argument '" + argument + "' expects 1 more input following it, but no more inputs were provided.");
 			std::stringstream ss(argv[argIndex]);
 			ss >> maxVertexCount;
-			if (ss.bad())
-				throw Odm25dMeshingException(
-						"Argument '" + argument
-								+ "' has a bad value (wrong type).");
-			maxVertexCount = std::max<unsigned int>(maxVertexCount, 0);
-			log << "Vertex count was manually set to: " << maxVertexCount
-					<< "\n";
-		} else if (argument == "-wlopIterations" && argIndex < argc) {
+			if (ss.bad()) throw Odm25dMeshingException("Argument '" + argument + "' has a bad value (wrong type).");
+			log << "Vertex count was manually set to: " << maxVertexCount << "\n";
+		}else if(argument == "-octreeDepth" && argIndex < argc){
 			++argIndex;
-			if (argIndex >= argc)
-				throw Odm25dMeshingException(
-						"Argument '" + argument
-								+ "' expects 1 more input following it, but no more inputs were provided.");
+			if (argIndex >= argc) throw Odm25dMeshingException("Argument '" + argument + "' expects 1 more input following it, but no more inputs were provided.");
 			std::stringstream ss(argv[argIndex]);
-			ss >> wlopIterations;
-			if (ss.bad())
-				throw Odm25dMeshingException(
-						"Argument '" + argument
-								+ "' has a bad value (wrong type).");
-
-			wlopIterations = std::min<unsigned int>(1000,
-					std::max<unsigned int>(wlopIterations, 1));
-			log << "WLOP iterations was manually set to: " << wlopIterations
-					<< "\n";
+			ss >> treeDepth;
+			if (ss.bad()) throw Odm25dMeshingException("Argument '" + argument + "' has a bad value (wrong type).");
+			log << "Octree depth was manually set to: " << treeDepth << "\n";
+		} else if(argument == "-solverDivide" && argIndex < argc){
+			++argIndex;
+			if (argIndex >= argc) throw Odm25dMeshingException("Argument '" + argument + "' expects 1 more input following it, but no more inputs were provided.");
+			std::stringstream ss(argv[argIndex]);
+			ss >> solverDivide;
+			if (ss.bad()) throw Odm25dMeshingException("Argument '" + argument + "' has a bad value (wrong type).");
+			log << "Numerical solver divisions was manually set to: " << solverDivide << "\n";
+		} else if(argument == "-samplesPerNode" && argIndex < argc){
+			++argIndex;
+			if (argIndex >= argc) throw Odm25dMeshingException("Argument '" + argument + "' expects 1 more input following it, but no more inputs were provided.");
+			std::stringstream ss(argv[argIndex]);
+			ss >> samplesPerNode;
+			if (ss.bad()) throw Odm25dMeshingException("Argument '" + argument + "' has a bad value (wrong type).");
+			log << "The number of samples per octree node was manually set to: " << samplesPerNode << "\n";
 		} else if (argument == "-inputFile" && argIndex < argc) {
 			++argIndex;
 			if (argIndex >= argc) {
@@ -196,7 +196,6 @@ void Odm25dMeshing::loadPointCloud() {
 	float pointHag = std::numeric_limits<float>::min();
 
 	pcl::PointCloud<pcl::PointNormal> allPoints;
-
 	allPoints.reserve(blob.width * blob.height);
 
 	for (size_t point_step = 0, i = 0; point_step < blob.data.size();
@@ -245,38 +244,41 @@ void Odm25dMeshing::loadPointCloud() {
 		}
 
 		if (pointClass == CLASS_GROUND) {
-			groundPoints->push_back(allPoints[i]);
+			meshPoints->push_back(allPoints[i]);
 		} else {
 			if (pointHag >= HAG_THRESHOLD) {
 				nongroundPoints->push_back(allPoints[i]);
 			}else{
-				groundPoints->push_back(allPoints[i]);
+				neargroundPoints->push_back(allPoints[i]);
 			}
 		}
 	}
-	//	  flipFaces = interpreter.flip_faces();
 
-	log << "Loaded " << groundPoints->size() << " ground points\n";
-	log << "Loaded " << nongroundPoints->size() << " non-ground points\n";
+	log << "Loaded " << meshPoints->size() << " points for meshing\n";
+	log << "Loaded " << nongroundPoints->size() << " non ground points\n";
+	log << "Loaded " << neargroundPoints->size() << " near ground points\n";
 }
 
-// Detect planes from non-ground points
-// and place them into the ground points (this just to avoid
-// creating a new vector)
-void Odm25dMeshing::detectPlanes() {
+// Merges ground with nonground points
+// while attempting to detect and smooth planar surfaces (ex. buildings)
+// and optionally discarding non planar surfaces (ex. trees)
+void Odm25dMeshing::mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>::Ptr points) {
+	if (points->size() < 3) return;
+
 	const int K = 30,
 		  MIN_CLUSTER_SIZE = 100;
+	const float SURFACE_RATIO_THRESHOLD = 0.2f;
 
 	log << "Extracting clusters... ";
 
 	pcl::search::Search<pcl::PointNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointNormal> > (new pcl::search::KdTree<pcl::PointNormal>);
 	pcl::RegionGrowing<pcl::PointNormal, pcl::PointNormal> reg;
 	reg.setMinClusterSize (MIN_CLUSTER_SIZE);
-	reg.setMaxClusterSize (nongroundPoints->size());
+	reg.setMaxClusterSize (points->size());
 	reg.setSearchMethod (tree);
 	reg.setNumberOfNeighbours (K);
-	reg.setInputCloud (nongroundPoints);
-	reg.setInputNormals (nongroundPoints);
+	reg.setInputCloud (points);
+	reg.setInputNormals (points);
 
 	reg.setSmoothnessThreshold (45 / 180.0 * M_PI);
 	reg.setCurvatureThreshold (3);
@@ -285,27 +287,26 @@ void Odm25dMeshing::detectPlanes() {
 	std::vector <pcl::PointIndices> clusters;
 	reg.extract (clusters);
 
-	pcl::io::savePLYFile("colored.ply", *reg.getColoredCloud ());
-
 	log << " found " << clusters.size() << " clusters\n";
-	log << "Computing per segment surface estimation...\n";
+	log << "Detecting per segment surfaces... \n";
 
 	std::vector<int> pointIdxNKNSearch(K);
 	std::vector<float> pointNKNSquaredDistance(K);
 
 	for (size_t cluster_idx = 0; cluster_idx < clusters.size(); cluster_idx++){
-		pcl::PointCloud<pcl::PointNormal>::Ptr cluster_cloud(new pcl::PointCloud<pcl::PointNormal>(*nongroundPoints, clusters[cluster_idx].indices));
-		pcl::KdTreeFLANN<pcl::PointNormal> kdtree;
-		kdtree.setInputCloud(cluster_cloud);
+		pcl::PointCloud<pcl::PointNormal>::Ptr cluster_cloud(new pcl::PointCloud<pcl::PointNormal>(*points, clusters[cluster_idx].indices));
+		pcl::search::KdTree<pcl::PointNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointNormal>);
+		tree->setInputCloud(cluster_cloud);
 
 		size_t surface_points = 0;
 		size_t points_in_cluster = cluster_cloud.get()->points.size();
+		size_t surface_points_needed = points_in_cluster * SURFACE_RATIO_THRESHOLD + 1; // For shortcut
 
 		for (auto point = cluster_cloud.get()->points.begin(); point != cluster_cloud.get()->points.end(); point++){
 			size_t same_normal_direction_count = 0;
 
 			// Find neighbors
-			if (kdtree.nearestKSearch(*point, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0){
+			if (tree->nearestKSearch(*point, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0){
 				size_t num_points = pointIdxNKNSearch.size();
 				for (size_t k = 0; k < num_points; k++){
 					const pcl::PointNormal &p = cluster_cloud.get()->at(pointIdxNKNSearch[k]);
@@ -316,245 +317,102 @@ void Odm25dMeshing::detectPlanes() {
 				}
 			}
 
-			if (same_normal_direction_count >= pointIdxNKNSearch.size() * 0.8f) surface_points++;
+			if (same_normal_direction_count >= pointIdxNKNSearch.size() * 0.8f){
+				surface_points++;
+
+				if (surface_points >= surface_points_needed && surface_points >= MIN_CLUSTER_SIZE) break; // Simple optimization
+			}
 		}
 
 		float surface_ratio = (float)surface_points / (float)points_in_cluster;
 		log << "Segment #" << cluster_idx << " (points: " << points_in_cluster << ", plane points: " << surface_points << " (" << (surface_ratio * 100.0f) << "%)\n";
 
-		// At least 20% of points are surfaces in this segment
-		// probably a man-made structure
-		if (surface_ratio >= 0.2f && surface_points >= MIN_CLUSTER_SIZE){
-			for (auto point_idx = clusters[cluster_idx].indices.begin (); point_idx != clusters[cluster_idx].indices.end (); point_idx++){
-				groundPoints->push_back(nongroundPoints->points[*point_idx]);
-			}
+		// At least SURFACE_RATIO_THRESHOLD% of points
+		// in this segment are probably a man-made structure
+		if (surface_points >= surface_points_needed && surface_points >= MIN_CLUSTER_SIZE){
+			pcl::MovingLeastSquares<pcl::PointNormal, pcl::PointNormal> mls;
+			pcl::PointCloud<pcl::PointNormal> mls_points;
+
+			mls.setInputCloud(cluster_cloud);
+			mls.setPolynomialFit (true);
+			mls.setSearchMethod (tree);
+			mls.setSearchRadius (0.2);
+			mls.process (mls_points);
+
+			(*meshPoints) += mls_points;
 		}else{
 			// Tree, or something else
 
 			// Do nothing
 		}
 	}
-
-	pcl::io::savePLYFile("filtered.ply", *groundPoints);
-
-//	if (nongroundPoints->size() < 3) return;
-//
-//	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-//	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-//	// Create the segmentation object
-//	pcl::SACSegmentationFromNormals<pcl::PointNormal, pcl::PointNormal> seg;
-//	// Optional
-//	seg.setOptimizeCoefficients (true);
-//	// Mandatory
-//	seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
-//	seg.setMethodType (pcl::SAC_RANSAC);
-//	seg.setDistanceThreshold (0.3);
-//	seg.setNormalDistanceWeight(0.1);
-//
-//	seg.setInputCloud (nongroundPoints);
-//	seg.setInputNormals(nongroundPoints);
-//	seg.segment (*inliers, *coefficients);
-//
-//	pcl::PointCloud<pcl::PointNormal> filtered;
-//	pcl::ExtractIndices<pcl::PointNormal> extract;
-//	extract.setInputCloud (nongroundPoints);
-//	extract.setIndices (inliers);
-//	extract.setNegative (false);
-//	extract.filter (filtered);
-//
-//	pcl::io::savePLYFile("nonground.ply", *nongroundPoints);
-//	pcl::io::savePLYFile("filtered.ply", filtered);
-
-	log << "Done!\n";
 }
 
-void Odm25dMeshing::buildMesh() {
-//	size_t pointCount = groundPoints.size();
-//
-//	log << "Computing points average spacing... ";
-//
-//	FT avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
-//			groundPoints.begin(),
-//			groundPoints.end(),
-//			24);
-//
-//	log << avgSpacing << "\n";
-//
-//	log << "Grid Z sampling and smoothing... ";
-//
-//	size_t pointCountBeforeGridSampling = pointCount;
-//
-//	double gridStep = avgSpacing / 2.0;
-//	Kernel::Iso_cuboid_3 bbox = CGAL::bounding_box(groundPoints.begin(), groundPoints.end());
-//	Vector3 boxDiag = bbox.max() - bbox.min();
-//
-//	int gridWidth = 1 + static_cast<unsigned>(boxDiag.x() / gridStep + 0.5);
-//	int gridHeight = 1 + static_cast<unsigned>(boxDiag.y() / gridStep + 0.5);
-//
-//	#define KEY(i, j) (i * gridWidth + j)
-//
-//	std::unordered_map<int, Point3> grid;
-//
-//	for (size_t c = 0; c < pointCount; c++){
-//		const Point3 &p = groundPoints[c];
-//		Vector3 relativePos = p - bbox.min();
-//		int i = static_cast<int>((relativePos.x() / gridStep + 0.5));
-//		int j = static_cast<int>((relativePos.y() / gridStep + 0.5));
-//
-//		if ((i >= 0 && i < gridWidth) && (j >= 0 && j < gridHeight)){
-//			int key = KEY(i, j);
-//
-//			if (grid.find(key) == grid.end()){
-//				grid[key] = p;
-//			}else if ((!flipFaces && p.z() > grid[key].z()) || (flipFaces && p.z() < grid[key].z())){
-//				grid[key] = p;
-//			}
-//		}
-//	}
-//
-//	std::vector<FT> bucket;
-//	unsigned int smoothedPoints = 0;
-//
-//	for (int i = 1; i < gridWidth - 1; i++){
-//		for (int j = 1; j < gridHeight - 1; j++){
-//			int key = KEY(i, j);
-//
-//			if (grid.find(key) != grid.end()){
-//				const Point3 &p = grid[key];
-//
-//				for (int ni = i - 1; ni < i + 2; ni++){
-//					for (int nj = j - 1; nj < j + 2; nj++){
-//						if (ni == i && nj == j) continue;
-//						int nkey = KEY(ni, nj);
-//
-//						if (grid.find(nkey) != grid.end()) bucket.push_back(grid[nkey].z());
-//					}
-//				}
-//
-//				if (bucket.size() >= 5){
-//					FT mean = accumulate(bucket.begin(), bucket.end(), 0.0) / bucket.size();
-//					FT variance = 0.0;
-//
-//					for (unsigned int k = 0; k < bucket.size(); k++) variance += fabs(bucket[k] - mean);
-//					variance /= bucket.size();
-//
-//					if (fabs(p.z() - mean) >= 3 * variance){
-//						// Replace Z value of outlier
-//						grid[key] = Point3(p.x(), p.y(), mean);
-//						smoothedPoints++;
-//					}
-//				}
-//			}
-//
-//			bucket.clear();
-//		}
-//	}
-//
-//	std::vector<Point3> gridPoints;
-//	for ( auto it = grid.begin(); it != grid.end(); ++it ){
-//		gridPoints.push_back(it->second);
-//	}
-//
-//	pointCount = gridPoints.size();
-//	log << "smoothed " << smoothedPoints << " points, sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
-//
-//	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
-//	std::vector<Point3> simplifiedPoints;
-//
-//	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
-//
-//	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
-//			gridPoints.begin(),
-//			gridPoints.end(),
-//			std::back_inserter(simplifiedPoints),
-//			RETAIN_PERCENTAGE,
-//			-1,
-//			wlopIterations,
-//			true);
-//
-//	pointCount = simplifiedPoints.size();
-//
-//	if (pointCount < 3){
-//		throw Odm25dMeshingException("Not enough points");
-//	}
-//
-//	log << "Vertex count is " << pointCount << "\n";
-//
-//    log << "Jet smoothing... ";
-//    for (size_t i = 1; i <= 5; i++){
-//    	log << i << "...";
-//    	CGAL::jet_smooth_point_set<Concurrency_tag>(simplifiedPoints.begin(), simplifiedPoints.end(), 24);
-//    }
-//    log << "OK\n";
-//
-//	typedef CDT::Point cgalPoint;
-//	std::vector< std::pair<cgalPoint, size_t > > pts;
-//	try{
-//		pts.reserve(pointCount);
-//	} catch (const std::bad_alloc&){
-//		throw Odm25dMeshingException("Not enough memory");
-//	}
-//
-//	for (size_t i = 0; i < pointCount; ++i){
-//		pts.push_back(std::make_pair(cgalPoint(simplifiedPoints[i].x(), simplifiedPoints[i].y()), i));
-//	}
-//
-//	log << "Computing delaunay triangulation... ";
-//
-//	CDT cdt;
-//	cdt.insert(pts.begin(), pts.end());
-//
-//	unsigned int numberOfTriangles = static_cast<unsigned >(cdt.number_of_faces());
-//	unsigned int triIndexes = numberOfTriangles*3;
-//
-//	if (numberOfTriangles == 0) throw Odm25dMeshingException("No triangles in resulting mesh");
-//
-//	log << numberOfTriangles << " triangles\n";
-//
-//	std::vector<float> vertices;
-//	std::vector<int> vertexIndices;
-//
-//	try{
-//		vertices.reserve(pointCount);
-//		vertexIndices.reserve(triIndexes);
-//	} catch (const std::bad_alloc&){
-//		throw Odm25dMeshingException("Not enough memory");
-//	}
-//
-//
-//	log << "Saving mesh to file.\n";
-//
-//	std::filebuf fb;
-//	fb.open(outputFile, std::ios::out);
-//	std::ostream os(&fb);
-//
-//	os << "ply\n"
-//	   << "format ascii 1.0\n"
-//	   << "element vertex " << pointCount << "\n"
-//	   << "property float x\n"
-//	   << "property float y\n"
-//	   << "property float z\n"
-//	   << "element face " << numberOfTriangles << "\n"
-//	   << "property list uchar int vertex_index\n"
-//	   << "end_header\n";
-//
-//	for (size_t i = 0; i < pointCount; ++i){
-//		os << simplifiedPoints[i].x() << " " << simplifiedPoints[i].y() << " " << simplifiedPoints[i].z() << std::endl;
-//	}
-//
-//	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
-//		os << 3 << " ";
-//
-//		if (flipFaces){
-//			os << face->vertex(2)->info() << " " << face->vertex(1)->info() << " " << face->vertex(0)->info() << std::endl;
-//		}else{
-//			os << face->vertex(0)->info() << " " << face->vertex(1)->info() << " " << face->vertex(2)->info() << std::endl;
-//		}
-//	}
-//
-//	fb.close();
+void Odm25dMeshing::createMesh() {
+    // Attempt to calculate the depth of the tree if unspecified
+    if (treeDepth == 0) treeDepth = calcTreeDepth(meshPoints->size());
 
-	log << "Successfully wrote mesh to: " << outputFile << "\n";
+    log << "Octree depth used for reconstruction is: " << treeDepth << "\n";
+    log << "Estimated initial vertex count: " << pow(4, treeDepth) << "\n";
+
+    meshCreator->setDepth(treeDepth);
+    meshCreator->setSamplesPerNode(samplesPerNode);
+    meshCreator->setInputCloud(meshPoints);
+
+    // Guarantee manifold mesh.
+    meshCreator->setManifold(true);
+
+    // Begin reconstruction
+    meshCreator->reconstruct(*mesh.get());
+
+    log << "Reconstruction complete:\n";
+    log << "Vertex count: " << mesh->cloud.width * mesh->cloud.height << "\n";
+    log << "Triangle count: " << mesh->polygons.size() << "\n\n";
+
+}
+
+void Odm25dMeshing::decimateMesh(){
+    if (maxVertexCount <= 0){
+        log << "Vertex count not specified, decimation cancelled.\n";
+        return;
+    }
+
+    if (maxVertexCount > mesh->cloud.height*mesh->cloud.width)
+    {
+        log << "Vertex count in mesh lower than initially generated mesh, unable to decimate.\n";
+        return;
+    }
+    else
+    {
+        double reductionFactor = 1.0 - double(maxVertexCount)/double(mesh->cloud.height*mesh->cloud.width);
+        log << "Decimating mesh, removing " << reductionFactor*100 << " percent of vertices.\n";
+
+        pcl::MeshQuadricDecimationVTK decimator;
+        decimator.setInputMesh(mesh);
+        decimator.setTargetReductionFactor(reductionFactor);
+        decimator.process(*decimatedMesh.get());
+
+        log << "Decimation complete.\n";
+        log << "Decimated vertex count: " << decimatedMesh->cloud.width << "\n";
+        log << "Decimated triangle count: " << decimatedMesh->polygons.size() << "\n\n";
+
+        mesh = decimatedMesh;
+    }
+}
+
+
+int Odm25dMeshing::calcTreeDepth(size_t nPoints){
+    // Assume points are located (roughly) in a plane.
+    double squareSide = std::sqrt((double)nPoints);
+
+    // Calculate octree depth such that if points were equally distributed in
+    // a quadratic plane, there would be at least 1 point per octree node.
+    int depth = 0;
+    while(std::pow<double>(2,depth) < squareSide/2)
+    {
+        depth++;
+    }
+    return depth;
 }
 
 void Odm25dMeshing::printHelp() {
@@ -574,11 +432,22 @@ void Odm25dMeshing::printHelp() {
 			<< (printInCoutPop ? "true" : "false") << ")\n"
 			<< "	-maxVertexCount	<0 - N>	Maximum number of vertices in the output mesh. The mesh might have fewer vertices, but will not exceed this limit. (default: "
 			<< maxVertexCount << ")\n"
-			<< "	-wlopIterations	<1 - 1000>	Iterations of the Weighted Locally Optimal Projection (WLOP) simplification algorithm. Higher values take longer but produce a smoother mesh. (default: "
-			<< wlopIterations << ")\n"
+
+				// TODO!!
 
 			<< "\n";
 
 	log.setIsPrintingInCout(printInCoutPop);
+}
+
+
+void Odm25dMeshing::writePlyFile(){
+    log << "Saving mesh to file.\n";
+
+    if (pcl::io::savePLYFile(outputFile.c_str(), *mesh.get())  == -1) {
+        throw Odm25dMeshingException("Error when saving mesh to file:\n" + outputFile + "\n");
+    }else{
+        log << "Successfully wrote mesh to: " << outputFile << "\n";
+    }
 }
 

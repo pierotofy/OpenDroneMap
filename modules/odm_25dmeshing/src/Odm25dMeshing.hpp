@@ -10,29 +10,32 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/PCLPointCloud2.h>
 
-
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/filters/extract_indices.h>
 #include <pcl/search/search.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/impl/region_growing.hpp>
+#include <pcl/surface/mls.h>
+#include <pcl/surface/poisson.h>
+#include <pcl/surface/vtk_smoothing/vtk_mesh_quadric_decimation.h>
 
 #include "Logger.hpp"
 
 class Odm25dMeshing {
 public:
 	Odm25dMeshing() :
-			log(false), groundPoints( new pcl::PointCloud<pcl::PointNormal> ), nongroundPoints( new pcl::PointCloud<pcl::PointNormal> ) {
-	}
-	;
-	~Odm25dMeshing() {
-	}
-	;
+			log(false),
+			meshPoints( new pcl::PointCloud<pcl::PointNormal> ),
+			nongroundPoints( new pcl::PointCloud<pcl::PointNormal> ),
+			neargroundPoints( new pcl::PointCloud<pcl::PointNormal> ),
+		    meshCreator(pcl::Poisson<pcl::PointNormal>::Ptr(new pcl::Poisson<pcl::PointNormal>())),
+		    mesh(pcl::PolygonMeshPtr(new pcl::PolygonMesh)),
+		    decimatedMesh(pcl::PolygonMeshPtr(new pcl::PolygonMesh))
+			{};
+
+	~Odm25dMeshing() {};
 
 	/*!
 	 * \brief   run     Runs the meshing functionality using the provided input arguments.
@@ -57,29 +60,55 @@ private:
 	 * \brief loadPointCloud    Loads a PLY file with points and normals from file.
 	 */
 	void loadPointCloud();
+	void createMesh();
+	void mergeAndSmoothPlanarPoints(pcl::PointCloud<pcl::PointNormal>::Ptr points);
 
-	/*!
-	 * \brief loadPointCloud    Builds a 2.5D mesh from loaded points
-	 */
-	void buildMesh();
-	void detectPlanes();
+    /*!
+     * \brief writePlyFile  Writes the mesh to file on the Ply format.
+     */
+    void writePlyFile();
 
 	/*!
 	 * \brief printHelp     Prints help, explaining usage. Can be shown by calling the program with argument: "-help".
 	 */
 	void printHelp();
 
+    /*!
+     * \brief decimateMesh  Performs post-processing on the form of quadric decimation to generate a mesh
+     *                      that has a higher density in areas with a lot of structure.
+     */
+    void decimateMesh();
+
+    /*!
+     * \brief calcTreeDepth Attepts to calculate the depth of the tree using the point cloud.
+     *                      The function makes the assumption points are located roughly in a plane
+     *                      (fairly reasonable for ortho-terrain photos) and tries to generate a mesh using
+     *                      an octree with an appropriate resolution.
+     * \param nPoints       The total number of points in the input point cloud.
+     * \return              The calcualated octree depth.
+     */
+    int calcTreeDepth(size_t nPoints);
+
 	Logger log;
 
 	std::string inputFile = "";
 	std::string outputFile = "odm_25dmesh.ply";
 	std::string logFilePath = "odm_25dmeshing_log.txt";
-	unsigned int maxVertexCount = 100000;
-	unsigned int wlopIterations = 10;
-	pcl::PointCloud<pcl::PointNormal>::Ptr groundPoints;
-	pcl::PointCloud<pcl::PointNormal>::Ptr nongroundPoints;
 
-	bool flipFaces = false;
+    unsigned int maxVertexCount = 100000;  /**< Desired output vertex count. */
+    unsigned int treeDepth = 0;    /**< Depth of octree used for reconstruction. */
+
+    double samplesPerNode = 1.0;     /**< Samples per octree node.*/
+    double solverDivide = 9.0;       /**< Depth at which the Laplacian equation solver is run during surface estimation.*/
+    double decimationFactor = 0.0;   /**< Percentage of points to remove when decimating the mesh. */
+
+	pcl::PointCloud<pcl::PointNormal>::Ptr meshPoints;
+	pcl::PointCloud<pcl::PointNormal>::Ptr nongroundPoints;
+	pcl::PointCloud<pcl::PointNormal>::Ptr neargroundPoints;
+
+    pcl::Poisson<pcl::PointNormal>::Ptr meshCreator;    /**< PCL poisson meshing class. */
+    pcl::PolygonMeshPtr mesh;                      /**< PCL polygon mesh. */
+    pcl::PolygonMeshPtr decimatedMesh;
 };
 
 class Odm25dMeshingException: public std::exception {
