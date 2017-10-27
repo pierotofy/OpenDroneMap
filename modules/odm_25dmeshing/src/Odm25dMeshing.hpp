@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <queue>
 
-#include <CGAL/wlop_simplify_and_regularize_point_set.h>
-
 #include "CGAL.hpp"
 #include "Logger.hpp"
 #include "PlyInterpreter.hpp"
@@ -38,15 +36,19 @@ private:
 	void parseArguments(int argc, char** argv);
 
 	/*!
-	 * \brief loadPointCloud    Loads a PLY file with points and normals from file.
+	 * \brief loadPointCloud    Loads a PLY file with points from file.
 	 */
-	void loadPointCloud();
+	void loadPointCloud(const std::string &inputFile, const std::vector<Point3> &groundPoints, const std::vector<Point3> &nongroundPoints);
+
+	/*!
+	 * \brief preparePoints    Does gridding, smoothing, and places the results in destination
+	 */
+	void preparePoints(const std::vector<Point3>& points, const std::vector<Point3> &destination);
 
 	/*!
 	 * \brief loadPointCloud    Builds a 2.5D mesh from loaded points
 	 */
-	void buildMesh();
-	void detectPlanes();
+	void buildMesh(std::vector<Point3>& points, const std::string &outputFile);
 
 	/*!
 	 * \brief printHelp     Prints help, explaining usage. Can be shown by calling the program with argument: "-help".
@@ -59,14 +61,7 @@ private:
 	std::string outputFile = "odm_25dmesh.ply";
 	std::string logFilePath = "odm_25dmeshing_log.txt";
 	unsigned int maxVertexCount = 100000;
-	unsigned int wlopIterations = 35;
-	std::vector<Point3> groundPoints;
-	std::vector<Vector3> groundNormals;
-	std::vector<Point3> nongroundPoints;
-	std::vector<Vector3> nongroundNormals;
-
-
-	bool flipFaces = false;
+	unsigned int wlopIterations = 10;
 };
 
 class Odm25dMeshingException: public std::exception {

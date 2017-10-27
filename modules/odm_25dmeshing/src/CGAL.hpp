@@ -8,7 +8,9 @@
 #include <CGAL/Triangulation_2.h>
 #include <CGAL/bounding_box.h>
 #include <CGAL/compute_average_spacing.h>
-#include <CGAL/Shape_detection_3.h>
+#include <CGAL/wlop_simplify_and_regularize_point_set.h>
+#include <CGAL/remove_outliers.h>
+#include <CGAL/jet_smooth_point_set.h>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
 typedef Kernel::FT FT;
@@ -20,14 +22,6 @@ typedef CGAL::Triangulation_vertex_base_with_info_2<size_t, Kernel> Vb;
 typedef CGAL::Constrained_triangulation_face_base_2<Kernel> Fb;
 typedef CGAL::Triangulation_data_structure_2<Vb, Fb> Tds;
 typedef CGAL::Constrained_Delaunay_triangulation_2<Kernel, Tds> CDT;
-
-typedef std::pair<Point3, Vector3>         Point_with_normal;
-typedef std::vector<Point_with_normal>     Pwn_vector;
-typedef CGAL::First_of_pair_property_map<Point_with_normal>  Point_map;
-typedef CGAL::Second_of_pair_property_map<Point_with_normal> Normal_map;
-typedef CGAL::Shape_detection_3::Efficient_RANSAC_traits<Kernel, Pwn_vector, Point_map, Normal_map>            Traits;
-typedef CGAL::Shape_detection_3::Efficient_RANSAC<Traits>   Efficient_ransac;
-typedef CGAL::Shape_detection_3::Plane<Traits>              Plane;
 
 // Concurrency
 #ifdef CGAL_LINKED_WITH_TBB

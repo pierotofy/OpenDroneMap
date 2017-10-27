@@ -14,10 +14,15 @@ int Odm25dMeshing::run(int argc, char **argv) {
 
 		parseArguments(argc, argv);
 
-		loadPointCloud();
+		std::vector<Point3> groundPoints, nongroundPoints;
 
-		detectPlanes();
-		buildMesh();
+		loadPointCloud(inputFile, groundPoints, nongroundPoints);
+
+		std::vector<Point3> bucket;
+		preparePoints(groundPoints, bucket);
+		preparePoints(nongroundPoints, bucket);
+
+		buildMesh(bucket, outputFile);
 
 	} catch (const Odm25dMeshingException& e) {
 		log.setIsPrintingInCout(true);
@@ -117,125 +122,38 @@ void Odm25dMeshing::parseArguments(int argc, char **argv) {
 	}
 }
 
-void Odm25dMeshing::loadPointCloud(){
-	  PlyInterpreter interpreter(groundPoints, groundNormals, nongroundPoints, nongroundNormals);
+void Odm25dMeshing::loadPointCloud(const std::string &inputFile, std::vector<Point3> &groundPoints, std::vector<Point3> &nongroundPoints){
+	  PlyInterpreter interpreter(groundPoints, nongroundPoints);
 
 	  std::ifstream in(inputFile);
 	  if (!in || !CGAL::read_ply_custom_points (in, interpreter, Kernel())){
 		  throw Odm25dMeshingException(
-		  				"Error when reading points and normals from:\n" + inputFile + "\n");
+		  				"Error when reading points from:\n" + inputFile + "\n");
 	  }
-
-	  flipFaces = interpreter.flip_faces();
 
 	  log << "Loaded " << groundPoints.size() << " ground points\n";
 	  log << "Loaded " << nongroundPoints.size() << " non-ground points\n";
+
 }
 
-// Detect planes from non-ground points
-// and place them into the ground points (this just to avoid
-// creating a new vector)
-void Odm25dMeshing::detectPlanes(){
-	if (nongroundPoints.size() < 3) return;
+void Odm25dMeshing::preparePoints(const std::vector<Point3>& points, const std::vector<Point3> &destination){
+	const unsigned int NEIGHBORS = 24;
 
-	Pwn_vector input;
-	const float NORMAL_THRESHOLD = 0.90;
-
-	log << "Computing non-ground points average spacing... ";
-
-	FT avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
-			nongroundPoints.begin(),
-			nongroundPoints.end(),
-			24);
-
-	log << avgSpacing << "\n";
-
-	for (size_t i = 0; i < nongroundPoints.size(); i++){
-		input.push_back(std::make_pair(nongroundPoints[i], nongroundNormals[i]));
-	}
-
-	log << "Detecting planar surfaces..." << "\n";
-
-	// Instantiates shape detection engine.
-	Efficient_ransac ransac;
-	// Provides the input data.
-	ransac.set_input(input);
-	// Registers detection of planes
-	ransac.add_shape_factory<Plane>();
-
-	// Sets parameters for shape detection.
-	Efficient_ransac::Parameters parameters;
-	// Sets probability to miss the largest primitive at each iteration.
-	parameters.probability = 0.05;
-
-	// Detect shapes with at least 500 points
-	parameters.min_points = 500;
-
-	// Sets maximum Euclidean distance between a point and a shape.
-	parameters.epsilon = avgSpacing / 2.0;
-
-	// Sets maximum Euclidean distance between points to be clustered.
-	parameters.cluster_epsilon = avgSpacing / 2.0;
-
-	// Sets maximum normal deviation.
-	// NORMAL_THRESHOLD < dot(surface_normal, point_normal);
-	parameters.normal_threshold = NORMAL_THRESHOLD;
-
-	// Detects shapes
-	ransac.detect(parameters);
-
-	Pwn_vector assigned_points;
-
-	// Prints number of detected shapes and unassigned points.
-	log << ransac.shapes().end() - ransac.shapes().begin() << " detected shapes, "
-	 << ransac.number_of_unassigned_points()
-	 << " unassigned points.\n";
-
-	// Efficient_ransac::shapes() provides
-	// an iterator range to the detected shapes.
-	Efficient_ransac::Shape_range shapes = ransac.shapes();
-	Efficient_ransac::Shape_range::iterator it = shapes.begin();
-
-	while (it != shapes.end()) {
-		boost::shared_ptr<Efficient_ransac::Shape> shape = *it;
-		// Using Shape_base::info() for printing
-		// the parameters of the detected shape.
-		log << (*it)->info() << "\n";
-
-		// Iterates through point indices assigned to each detected shape.
-		std::vector<std::size_t>::const_iterator
-		  index_it = (*it)->indices_of_assigned_points().begin();
-		while (index_it != (*it)->indices_of_assigned_points().end()) {
-		  // Retrieves point
-		  const Point_with_normal &p = *(input.begin() + (*index_it));
-		  groundPoints.push_back(p.first);
-		  groundNormals.push_back(p.second);
-		  index_it++;
-		}
-
-		// Proceeds with next detected shape.
-		it++;
-	}
-}
-
-void Odm25dMeshing::buildMesh(){
-	size_t pointCount = groundPoints.size();
+	size_t pointCount = points.size();
 
 	log << "Computing points average spacing... ";
 
 	FT avgSpacing = CGAL::compute_average_spacing<Concurrency_tag>(
-			groundPoints.begin(),
-			groundPoints.end(),
-			24);
+			points.begin(),
+			points.end(),
+			NEIGHBORS);
 
 	log << avgSpacing << "\n";
 
-	log << "Grid Z sampling and smoothing... ";
-
-	size_t pointCountBeforeGridSampling = pointCount;
+	log << "Grid Z sampling... ";
 
 	double gridStep = avgSpacing / 2.0;
-	Kernel::Iso_cuboid_3 bbox = CGAL::bounding_box(groundPoints.begin(), groundPoints.end());
+	Kernel::Iso_cuboid_3 bbox = CGAL::bounding_box(points.begin(), points.end());
 	Vector3 boxDiag = bbox.max() - bbox.min();
 
 	int gridWidth = 1 + static_cast<unsigned>(boxDiag.x() / gridStep + 0.5);
@@ -246,7 +164,7 @@ void Odm25dMeshing::buildMesh(){
 	std::unordered_map<int, Point3> grid;
 
 	for (size_t c = 0; c < pointCount; c++){
-		const Point3 &p = groundPoints[c];
+		const Point3 &p = points[c];
 		Vector3 relativePos = p - bbox.min();
 		int i = static_cast<int>((relativePos.x() / gridStep + 0.5));
 		int j = static_cast<int>((relativePos.y() / gridStep + 0.5));
@@ -256,47 +174,9 @@ void Odm25dMeshing::buildMesh(){
 
 			if (grid.find(key) == grid.end()){
 				grid[key] = p;
-			}else if ((!flipFaces && p.z() > grid[key].z()) || (flipFaces && p.z() < grid[key].z())){
+			}else if (p.z() > grid[key].z()){
 				grid[key] = p;
 			}
-		}
-	}
-
-	std::vector<FT> bucket;
-	unsigned int smoothedPoints = 0;
-
-	for (int i = 1; i < gridWidth - 1; i++){
-		for (int j = 1; j < gridHeight - 1; j++){
-			int key = KEY(i, j);
-
-			if (grid.find(key) != grid.end()){
-				const Point3 &p = grid[key];
-
-				for (int ni = i - 1; ni < i + 2; ni++){
-					for (int nj = j - 1; nj < j + 2; nj++){
-						if (ni == i && nj == j) continue;
-						int nkey = KEY(ni, nj);
-
-						if (grid.find(nkey) != grid.end()) bucket.push_back(grid[nkey].z());
-					}
-				}
-
-				if (bucket.size() >= 5){
-					FT mean = accumulate(bucket.begin(), bucket.end(), 0.0) / bucket.size();
-					FT variance = 0.0;
-
-					for (unsigned int k = 0; k < bucket.size(); k++) variance += fabs(bucket[k] - mean);
-					variance /= bucket.size();
-
-					if (fabs(p.z() - mean) >= 3 * variance){
-						// Outlier
-						grid.erase(key);
-						smoothedPoints++;
-					}
-				}
-			}
-
-			bucket.clear();
 		}
 	}
 
@@ -306,29 +186,29 @@ void Odm25dMeshing::buildMesh(){
 	}
 
 	pointCount = gridPoints.size();
-	log << "smoothed " << smoothedPoints << " points, sampled " << (pointCountBeforeGridSampling - pointCount) << " points\n";
+	log << "sampled " << pointCount << " points\n";
 
-	const double RETAIN_PERCENTAGE = std::min<double>(80., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
-	std::vector<Point3> simplifiedPoints;
+	const double RETAIN_PERCENTAGE = std::min<double>(100., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
 
 	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
 
 	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
 			gridPoints.begin(),
 			gridPoints.end(),
-			std::back_inserter(simplifiedPoints),
+			std::back_inserter(destination),
 			RETAIN_PERCENTAGE,
 			-1,
 			wlopIterations,
 			true);
+}
 
-	pointCount = simplifiedPoints.size();
+void Odm25dMeshing::buildMesh(const std::vector<Point3>& points, const std::string &outputFile){
+	size_t pointCount = points.size();
+	log << "Vertex count is " << pointCount << "\n";
 
 	if (pointCount < 3){
 		throw Odm25dMeshingException("Not enough points");
 	}
-
-	log << "Vertex count is " << pointCount << "\n";
 
 	typedef CDT::Point cgalPoint;
 	std::vector< std::pair<cgalPoint, size_t > > pts;
@@ -339,7 +219,7 @@ void Odm25dMeshing::buildMesh(){
 	}
 
 	for (size_t i = 0; i < pointCount; ++i){
-		pts.push_back(std::make_pair(cgalPoint(simplifiedPoints[i].x(), simplifiedPoints[i].y()), i));
+		pts.push_back(std::make_pair(cgalPoint(points[i].x(), points[i].y()), i));
 	}
 
 	log << "Computing delaunay triangulation... ";
@@ -382,17 +262,11 @@ void Odm25dMeshing::buildMesh(){
 	   << "end_header\n";
 
 	for (size_t i = 0; i < pointCount; ++i){
-		os << simplifiedPoints[i].x() << " " << simplifiedPoints[i].y() << " " << simplifiedPoints[i].z() << std::endl;
+		os << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
 	}
 
 	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
-		os << 3 << " ";
-
-		if (flipFaces){
-			os << face->vertex(2)->info() << " " << face->vertex(1)->info() << " " << face->vertex(0)->info() << std::endl;
-		}else{
-			os << face->vertex(0)->info() << " " << face->vertex(1)->info() << " " << face->vertex(2)->info() << std::endl;
-		}
+		os << 3 << " " << face->vertex(0)->info() << " " << face->vertex(1)->info() << " " << face->vertex(2)->info() << std::endl;
 	}
 
 	fb.close();

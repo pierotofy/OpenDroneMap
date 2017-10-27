@@ -4,28 +4,33 @@
 bool PlyInterpreter::is_applicable(CGAL::Ply_reader& reader) {
 	return reader.does_tag_exist<FT> ("x")
 	      && reader.does_tag_exist<FT> ("y")
-	      && reader.does_tag_exist<FT> ("z")
-		  && reader.does_tag_exist<FT> ("nx")
-		  && reader.does_tag_exist<FT> ("ny")
-		  && reader.does_tag_exist<FT> ("nz");
+	      && reader.does_tag_exist<FT> ("z");
 }
 
 // Describes how to process one line (= one point object)
 void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
-	FT x = (FT)0., y = (FT)0., z = (FT)0.,
-		nx = (FT)0., ny = (FT)0., nz = (FT)0.;
+	FT x = (FT)0., y = (FT)0., z = (FT)0;
+	bool cameraPoint = false;
+	const unsigned char CLASS_GROUND = 2;
 	unsigned char classification = 2;
-	const char CLASS_GROUND = 2;
-	const FT HAG_THRESHOLD = 1.0; // 1 meter
-
-	FT hag = 0; // Height Above Ground
 
 	reader.assign (x, "x");
 	reader.assign (y, "y");
 	reader.assign (z, "z");
-	reader.assign (nx, "nx");
-	reader.assign (ny, "ny");
-	reader.assign (nz, "nz");
+
+	if (reader.does_tag_exist<unsigned char>("diffuse_red") &&
+		reader.does_tag_exist<unsigned char>("diffuse_green") &&
+		reader.does_tag_exist<unsigned char>("diffuse_blue")){
+		unsigned char r = 0, g = 0, b = 0;
+
+		reader.assign(r, "diffuse_red");
+		reader.assign(g, "diffuse_green");
+		reader.assign(b, "diffuse_blue");
+
+		cameraPoint = (r == 0 && g == 0 && b == 255) ||
+				 (r == 0 && g == 255 && b == 0) ||
+				 (r == 255 && g == 0 && b == 0);
+	}
 
 	if (reader.does_tag_exist<unsigned char>("classification")){
 		reader.assign(classification, "classification");
@@ -34,35 +39,14 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 		warnedClassificationMissing = true;
 	}
 
-	if (reader.does_tag_exist<FT>("heightaboveground")){
-		reader.assign(hag, "heightaboveground");
-	}else if (!warnedHagMissing){
-		std::cout << "WARNING: Points are missing the heightaboveground tag. No big deal.\n";
-		warnedHagMissing = true;
-	}
+	if (!cameraPoint){
+		Point3 p(x, y, z);
 
-	Point3 p(x, y, z);
-	Vector3 n(nx, ny, nz);
-
-	if (nz >= 0 && zNormalsDirectionCount < std::numeric_limits<long>::max()){
-		zNormalsDirectionCount++;
-	}else if (nz < 0 && zNormalsDirectionCount > std::numeric_limits<long>::min()){
-		zNormalsDirectionCount--;
-	}
-
-	if (classification == CLASS_GROUND){ // Less than 1 meter
-		if (hag < HAG_THRESHOLD){
+		if (classification == CLASS_GROUND){
 			groundPoints.push_back(p);
-			groundNormals.push_back(n);
-		}
-	}else{
-		if (hag >= HAG_THRESHOLD){
+		}else{
 			nongroundPoints.push_back(p);
-			nongroundNormals.push_back(n);
 		}
 	}
 }
 
-bool PlyInterpreter::flip_faces(){
-	return zNormalsDirectionCount < 0;
-}
