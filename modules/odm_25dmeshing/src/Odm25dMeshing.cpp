@@ -20,7 +20,7 @@ int Odm25dMeshing::run(int argc, char **argv) {
 
 		std::vector<Point3> bucket;
 		preparePoints(groundPoints, bucket);
-		preparePoints(nongroundPoints, bucket);
+//		preparePoints(nongroundPoints, bucket);
 
 		buildMesh(bucket, outputFile);
 
@@ -136,7 +136,7 @@ void Odm25dMeshing::loadPointCloud(const std::string &inputFile, std::vector<Poi
 
 }
 
-void Odm25dMeshing::preparePoints(const std::vector<Point3>& points, const std::vector<Point3> &destination){
+void Odm25dMeshing::preparePoints(std::vector<Point3>& points, std::vector<Point3> &destination){
 	const unsigned int NEIGHBORS = 24;
 
 	size_t pointCount = points.size();
@@ -158,13 +158,15 @@ void Odm25dMeshing::preparePoints(const std::vector<Point3>& points, const std::
 
 	int gridWidth = 1 + static_cast<unsigned>(boxDiag.x() / gridStep + 0.5);
 	int gridHeight = 1 + static_cast<unsigned>(boxDiag.y() / gridStep + 0.5);
+	size_t gridSize = gridWidth * gridHeight;
 
 	#define KEY(i, j) (i * gridWidth + j)
 
-	std::unordered_map<int, Point3> grid;
+	std::vector<Point3 *> grid;
+	for (size_t i = 0; i < gridSize; i++) grid.push_back(NULL);
 
 	for (size_t c = 0; c < pointCount; c++){
-		const Point3 &p = points[c];
+		Point3 &p = points[c];
 		Vector3 relativePos = p - bbox.min();
 		int i = static_cast<int>((relativePos.x() / gridStep + 0.5));
 		int j = static_cast<int>((relativePos.y() / gridStep + 0.5));
@@ -172,37 +174,94 @@ void Odm25dMeshing::preparePoints(const std::vector<Point3>& points, const std::
 		if ((i >= 0 && i < gridWidth) && (j >= 0 && j < gridHeight)){
 			int key = KEY(i, j);
 
-			if (grid.find(key) == grid.end()){
-				grid[key] = p;
-			}else if (p.z() > grid[key].z()){
-				grid[key] = p;
+			if (grid[key] == NULL){
+				grid[key] = &p;
+			}else if (p.z() > grid[key]->z()){
+				grid[key] = &p;
 			}
 		}
 	}
 
 	std::vector<Point3> gridPoints;
-	for ( auto it = grid.begin(); it != grid.end(); ++it ){
-		gridPoints.push_back(it->second);
+	for ( Point3 *p : grid){
+		if (p != NULL) gridPoints.push_back(*p);
 	}
 
-	pointCount = gridPoints.size();
-	log << "sampled " << pointCount << " points\n";
+	log << "sampled " << gridPoints.size() << " points\n";
 
-	const double RETAIN_PERCENTAGE = std::min<double>(100., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(pointCount));   // percentage of points to retain.
+	//const double RETAIN_PERCENTAGE = std::min<double>(100., 100. * static_cast<double>(maxVertexCount) / static_cast<double>(groundPoints.size() + nongroundPoints.size()));   // percentage of points to retain.
+	//
+	//log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
+	//
+	//std::vector<Point3> smoothed;
+	//
+	//CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
+	//		groundPoints.begin(),
+	//		groundPoints.end(),
+	//		std::back_inserter(smoothed),
+	//		RETAIN_PERCENTAGE,
+	//		-1,
+	//		wlopIterations,
+	//		true);
 
-	log << "Performing weighted locally optimal projection simplification and regularization (retain: " << RETAIN_PERCENTAGE << "%, iterate: " << wlopIterations << ")" << "\n";
+	CDT cdt = triangulate(gridPoints);
+	Vector3 up(0.0f, 0.0f, 1.0f);
 
-	CGAL::wlop_simplify_and_regularize_point_set<Concurrency_tag>(
-			gridPoints.begin(),
-			gridPoints.end(),
-			std::back_inserter(destination),
-			RETAIN_PERCENTAGE,
-			-1,
-			wlopIterations,
-			true);
+	const float ANGLE_THRESHOLD = cos(45 * M_PI / 180.0f);
+	const float HEIGHT_THRESHOLD = 0.1f; // 10cm
+	std::unordered_map<int, bool> added;
+
+	for (CDT::Face_iterator face = cdt.faces_begin(); face != cdt.faces_end(); ++face) {
+		int i1 = face->vertex(0)->info(),
+			i2 = face->vertex(1)->info(),
+			i3 = face->vertex(2)->info();
+		Point3 &p1 = gridPoints[i1],
+			   &p2 = gridPoints[i2],
+			   &p3 = gridPoints[i3];
+		Vector3 normal = CGAL::unit_normal(p1, p2, p3);
+
+		// If angle of triangle is steep
+		if (CGAL::scalar_product(up, normal) < ANGLE_THRESHOLD){
+			// Find highest vertex
+			Point3 highest_point, lowest_point;
+			int highest_idx;
+
+			if (p1.z() >= p2.z() && p1.z() >= p3.z()){
+				highest_point = p1;
+				highest_idx = i1;
+			}
+			else if (p2.z() >= p3.z()){
+				highest_point = p2;
+				highest_idx = i2;
+			}
+			else{
+				highest_point = p3;
+				highest_idx = i3;
+			}
+
+			if (p1.z() < p2.z() && p1.z() < p3.z()) lowest_point = p1;
+			else if (p2.z() < p3.z()) lowest_point = p2;
+			else lowest_point = p3;
+
+			if (added.find(highest_idx) == added.end()){
+				if (highest_point.z() - lowest_point.z() > HEIGHT_THRESHOLD){
+					float eps = 0.00001f;
+
+					gridPoints.push_back(Point3(highest_point.x() + eps, highest_point.y() + eps, lowest_point.z()));
+					gridPoints.push_back(Point3(highest_point.x() - eps, highest_point.y() + eps, lowest_point.z()));
+					gridPoints.push_back(Point3(highest_point.x() + eps, highest_point.y() - eps, lowest_point.z()));
+					gridPoints.push_back(Point3(highest_point.x() - eps, highest_point.y() - eps, lowest_point.z()));
+
+					added[highest_idx] = true;
+				}
+			}
+		}
+	}
+
+	std::copy(gridPoints.begin(), gridPoints.end(), std::back_inserter(destination));
 }
 
-void Odm25dMeshing::buildMesh(const std::vector<Point3>& points, const std::string &outputFile){
+CDT Odm25dMeshing::triangulate(std::vector<Point3>& points){
 	size_t pointCount = points.size();
 	log << "Vertex count is " << pointCount << "\n";
 
@@ -227,23 +286,18 @@ void Odm25dMeshing::buildMesh(const std::vector<Point3>& points, const std::stri
 	CDT cdt;
 	cdt.insert(pts.begin(), pts.end());
 
+	return cdt;
+}
+
+void Odm25dMeshing::buildMesh(std::vector<Point3>& points, const std::string &outputFile){
+	CDT cdt = triangulate(points);
+
 	unsigned int numberOfTriangles = static_cast<unsigned >(cdt.number_of_faces());
 	unsigned int triIndexes = numberOfTriangles*3;
 
 	if (numberOfTriangles == 0) throw Odm25dMeshingException("No triangles in resulting mesh");
 
 	log << numberOfTriangles << " triangles\n";
-
-	std::vector<float> vertices;
-	std::vector<int> vertexIndices;
-
-	try{
-		vertices.reserve(pointCount);
-		vertexIndices.reserve(triIndexes);
-	} catch (const std::bad_alloc&){
-		throw Odm25dMeshingException("Not enough memory");
-	}
-
 
 	log << "Saving mesh to file.\n";
 
@@ -253,7 +307,7 @@ void Odm25dMeshing::buildMesh(const std::vector<Point3>& points, const std::stri
 
 	os << "ply\n"
 	   << "format ascii 1.0\n"
-	   << "element vertex " << pointCount << "\n"
+	   << "element vertex " << points.size() << "\n"
 	   << "property float x\n"
 	   << "property float y\n"
 	   << "property float z\n"
@@ -261,7 +315,7 @@ void Odm25dMeshing::buildMesh(const std::vector<Point3>& points, const std::stri
 	   << "property list uchar int vertex_index\n"
 	   << "end_header\n";
 
-	for (size_t i = 0; i < pointCount; ++i){
+	for (size_t i = 0; i < points.size(); ++i){
 		os << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
 	}
 

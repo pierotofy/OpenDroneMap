@@ -38,16 +38,14 @@ private:
 	/*!
 	 * \brief loadPointCloud    Loads a PLY file with points from file.
 	 */
-	void loadPointCloud(const std::string &inputFile, const std::vector<Point3> &groundPoints, const std::vector<Point3> &nongroundPoints);
+	void loadPointCloud(const std::string &inputFile, std::vector<Point3> &groundPoints, std::vector<Point3> &nongroundPoints);
 
 	/*!
 	 * \brief preparePoints    Does gridding, smoothing, and places the results in destination
 	 */
-	void preparePoints(const std::vector<Point3>& points, const std::vector<Point3> &destination);
+	void preparePoints(std::vector<Point3>& points, std::vector<Point3> &destination);
 
-	/*!
-	 * \brief loadPointCloud    Builds a 2.5D mesh from loaded points
-	 */
+	CDT triangulate(std::vector<Point3>& points);
 	void buildMesh(std::vector<Point3>& points, const std::string &outputFile);
 
 	/*!

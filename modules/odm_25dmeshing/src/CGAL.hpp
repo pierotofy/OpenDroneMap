@@ -10,7 +10,6 @@
 #include <CGAL/compute_average_spacing.h>
 #include <CGAL/wlop_simplify_and_regularize_point_set.h>
 #include <CGAL/remove_outliers.h>
-#include <CGAL/jet_smooth_point_set.h>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
 typedef Kernel::FT FT;

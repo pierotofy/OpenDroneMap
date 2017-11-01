@@ -41,12 +41,12 @@ void PlyInterpreter::process_line(CGAL::Ply_reader& reader) {
 
 	if (!cameraPoint){
 		Point3 p(x, y, z);
-
-		if (classification == CLASS_GROUND){
-			groundPoints.push_back(p);
-		}else{
-			nongroundPoints.push_back(p);
-		}
+		groundPoints.push_back(p);
+//		if (classification == CLASS_GROUND){
+//			groundPoints.push_back(p);
+//		}else{
+//			nongroundPoints.push_back(p);
+//		}
 	}
 }
 
