@@ -8,7 +8,7 @@ ExternalProject_Add(${_proj_name}
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}
   URL               https://github.com/ros/catkin/archive/0.6.16.zip
-  URL_MD5           F5D45AE68709CE6E3346FB8C019416F8
+  URL_MD5           f5d45ae68709ce6e3346fb8c019416f8
   #--Update/Patch step----------
   UPDATE_COMMAND    ""
   #--Configure step-------------

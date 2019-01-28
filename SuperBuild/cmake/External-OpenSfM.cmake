@@ -1,8 +1,18 @@
 set(_proj_name opensfm)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
+set (OPENSFM_DEPENDS ceres opengv)
+set (OPENSFM_CONFIGURE_COMMAND "cmake <SOURCE_DIR>/${_proj_name}/src
+    -DCERES_ROOT_DIR=${SB_INSTALL_DIR}
+    -DOPENSFM_BUILD_TESTS=off")
+
+if (NOT CYGWIN)
+  set (OPENSFM_DEPENDS ${OPENSFM_DEPENDS} opencv)
+  set (OPENSFM_CONFIGURE_COMMAND "${OPENSFM_CONFIGURE_COMMAND} -DOpenCV_DIR=${SB_INSTALL_DIR}/share/OpenCV")
+endif()
+
 ExternalProject_Add(${_proj_name}
-  DEPENDS           ceres opencv opengv
+  DEPENDS           ${OPENSFM_DEPENDS}
   PREFIX            ${_SB_BINARY_DIR}
   TMP_DIR           ${_SB_BINARY_DIR}/tmp
   STAMP_DIR         ${_SB_BINARY_DIR}/stamp
@@ -13,11 +23,8 @@ ExternalProject_Add(${_proj_name}
   UPDATE_COMMAND    ""
   #--Configure step-------------
   SOURCE_DIR        ${SB_SOURCE_DIR}/${_proj_name}
-  CONFIGURE_COMMAND cmake <SOURCE_DIR>/${_proj_name}/src
-    -DCERES_ROOT_DIR=${SB_INSTALL_DIR}
-    -DOpenCV_DIR=${SB_INSTALL_DIR}/share/OpenCV
-    -DOPENSFM_BUILD_TESTS=off
-
+  CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND}
+  
   #--Build step-----------------
   BINARY_DIR        ${_SB_BINARY_DIR}
   #--Install step---------------

@@ -1,4 +1,9 @@
-from psutil import virtual_memory
+try:
+    from psutil import virtual_memory
+except:
+    def virtual_memory():
+        raise "Not implemented: TODO!"
+        
 import os
 
 def get_max_memory(minimum = 5, use_at_most = 0.5):

@@ -1,6 +1,10 @@
 set(_proj_name pcl)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
+if (CYGWIN)
+  set (EXTRA_BUILD_DIRECTIVES "-D OPENGL_INCLUDE_DIR:PATH=/usr/include/w32api/ -D OPENGL_gl_LIBRARY:PATH=/usr/lib/w32api/libopengl32.a -D OPENGL_glu_LIBRARY:PATH=/usr/lib/w32api/libglu32.a")
+endif()
+
 ExternalProject_Add(${_proj_name}
   PREFIX            ${_SB_BINARY_DIR}
   TMP_DIR           ${_SB_BINARY_DIR}/tmp
@@ -44,9 +48,11 @@ ExternalProject_Add(${_proj_name}
     -DWITH_LIBUSB=OFF
     -DWITH_PCAP=OFF
     -DWITH_PXCAPI=OFF
+    -DWITH_VTK=OFF
     -DCMAKE_BUILD_TYPE=Release
     -DPCL_VERBOSITY_LEVEL=Error
     -DCMAKE_INSTALL_PREFIX:PATH=${SB_INSTALL_DIR}
+    ${EXTRA_BUILD_DIRECTIVES}
   #--Build step-----------------
   BINARY_DIR        ${_SB_BINARY_DIR}
   #--Install step---------------

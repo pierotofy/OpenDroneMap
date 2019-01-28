@@ -1,6 +1,10 @@
 set(_proj_name opengv)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
+if(CYGWIN)
+  set(EXTRA_CMAKE_ARGS -DWIN32=ON)
+endif()
+
 ExternalProject_Add(${_proj_name}
   PREFIX            ${_SB_BINARY_DIR}
   TMP_DIR           ${_SB_BINARY_DIR}/tmp
@@ -8,7 +12,7 @@ ExternalProject_Add(${_proj_name}
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}
   URL               https://github.com/paulinus/opengv/archive/7436794df04d85433a966395088e38b107e69fc2.zip
-  URL_MD5           9B303C3AB9F210B242941E851572D2C8
+  URL_MD5           9b303c3ab9f210b242941e851572d2c8
   #--Update/Patch step----------
   UPDATE_COMMAND    ""
   #--Configure step-------------
@@ -17,6 +21,7 @@ ExternalProject_Add(${_proj_name}
     -DBUILD_TESTS=OFF 
     -DBUILD_PYTHON=ON
     -DCMAKE_INSTALL_PREFIX:PATH=${SB_INSTALL_DIR}
+    ${EXTRA_CMAKE_ARGS}
   #--Build step-----------------
   BINARY_DIR        ${_SB_BINARY_DIR}
   #--Install step---------------
