@@ -107,6 +107,10 @@ set(custom_libs OpenGV
 				MvsTexturing
 )
 
+if (CYGWIN)
+    set (custom_libs glog ${custom_libs})
+endif()
+
 # Dependencies of the SLAM module
 if(ODM_BUILD_SLAM)
 	list(APPEND custom_libs
@@ -143,16 +147,7 @@ externalproject_add(smvs
     INSTALL_COMMAND ""
 )
 
-externalproject_add(poissonrecon
-    GIT_REPOSITORY    https://github.com/mkazhdan/PoissonRecon.git
-    GIT_TAG           ce5005ae3094d902d551a65a8b3131e06f45e7cf
-    SOURCE_DIR        ${SB_SOURCE_DIR}/PoissonRecon
-    UPDATE_COMMAND    ""
-    CONFIGURE_COMMAND ""
-    BUILD_IN_SOURCE 1
-    BUILD_COMMAND     make poissonrecon
-    INSTALL_COMMAND   ""
-)
+SETUP_EXTERNAL_PROJECT_CUSTOM(PoissonRecon)
 
 externalproject_add(dem2mesh
     GIT_REPOSITORY    https://github.com/OpenDroneMap/dem2mesh.git

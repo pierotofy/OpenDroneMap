@@ -9,7 +9,7 @@ ExternalProject_Add(${_proj_name}
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}/${_proj_name}
   URL               https://github.com/plasmodic/ecto/archive/c6178ed0102a66cebf503a4213c27b0f60cfca69.zip
-  URL_MD5           A5C4757B656D536D3E3CC1DC240EC158
+  URL_MD5           a5c4757b656d536d3e3cc1dc240ec158
   #--Update/Patch step----------
   UPDATE_COMMAND    ""
   #--Configure step-------------

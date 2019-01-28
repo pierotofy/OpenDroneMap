@@ -8,7 +8,7 @@ fi
 
 install() {
     ## Set up library paths
-    export PYTHONPATH=$RUNPATH/SuperBuild/install/lib/python2.7/dist-packages:$RUNPATH/SuperBuild/src/opensfm:$PYTHONPATH
+    export PYTHONPATH=$RUNPATH/SuperBuild/install/lib/python2.7/dist-packages:$RUNPATH/SuperBuild/src/opensfm:$RUNPATH/SuperBuild/install/lib/python2.7/site-packages:$PYTHONPATH
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$RUNPATH/SuperBuild/install/lib
 
     ## Before installing
@@ -16,7 +16,7 @@ install() {
     apt-cyg update
 
     echo "Installing Required Requisites"
-    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel apt-cyg install zlib-devel libexpat-devel gettext-devel
+    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel
 
     # Upgrade pip
     pip2 install --upgrade pip
@@ -40,24 +40,11 @@ install() {
     #                      libboost-thread-dev \
     #                      python-pyproj
 
-    # pip install -U PyYAML \
-    #                     exifread \
-    #                     gpxpy \
-    #                     xmltodict \
-    #                     appsettings \
-    #                     loky \
-    #                     repoze.lru
-
     echo "Installing Ecto Dependencies"
 
     # TODO: missing pyside (needs qmake?)
     # TODO missing liblas-bin
     pip install -U catkin-pkg empy nose
-
-    # echo "Installing lidar2dems Dependencies"
-    # apt-get install -y -qq swig2.0 \
-    #                      python-wheel \
-    #                      libboost-log-dev
 
     echo "Compiling SuperBuild"
     cd ${RUNPATH}/SuperBuild
