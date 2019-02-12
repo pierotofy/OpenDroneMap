@@ -16,7 +16,7 @@ install() {
     apt-cyg update
 
     echo "Installing Required Requisites"
-    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel
+    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel libxml2-devel libiconv-devel
 
     # Upgrade pip
     pip2 install --upgrade pip

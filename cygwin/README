@@ -1,0 +1,1 @@
+The g++ and gcc scripts in this directory are used to replace the real g++ and gcc programs so that compilation across all projects (including dependencies) uses the -march=core2 flag, which allows us to build a docker image compatible with most Intel based CPUs as well as allowing the GNU++ standard to be used.

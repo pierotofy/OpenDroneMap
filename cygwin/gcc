@@ -1,0 +1,16 @@
+#!/bin/bash
+
+args=""
+
+for i in "$@"
+do
+    if [[ $i = -std=c++11 ]]; then
+        args="$args -std=gnu++11"
+    elif [[ $i = -std=c++14 ]]; then
+        args="$args -std=gnu++14"
+    elif [[ $i != -march* ]]; then
+        args="$args $i"
+    fi
+done
+
+/usr/bin/gcc_real -march=core2 $args

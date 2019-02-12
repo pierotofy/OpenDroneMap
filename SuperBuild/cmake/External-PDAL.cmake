@@ -1,6 +1,13 @@
 set(_proj_name pdal)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
+if (CYGWIN)
+  set (EXTRA_CMAKE_ARGS -DGDAL_LIBRARY=gdal -DGEOS_LIBRARY=libgeos_c)
+  set (LASZIP_LIBRARY_ARGS -DLASZIP_LIBRARY=${SB_INSTALL_DIR}/lib/liblaszip.dll.a)
+else()
+  set (LASZIP_LIBRARY_ARGS -DLASZIP_LIBRARY=${SB_INSTALL_DIR}/lib/liblaszip.so)
+endif()
+
 ExternalProject_Add(${_proj_name}
   DEPENDS           hexer laszip
   PREFIX            ${_SB_BINARY_DIR}
@@ -34,13 +41,14 @@ ExternalProject_Add(${_proj_name}
 	-DWITH_GEOTIFF=ON
 	-DWITH_LASZIP=ON
 	-DLASZIP_FOUND=TRUE
-	-DLASZIP_LIBRARIES=${SB_INSTALL_DIR}/lib/liblaszip.so
 	-DLASZIP_VERSION=3.1.1
 	-DLASZIP_INCLUDE_DIR=${SB_INSTALL_DIR}/include
-	-DLASZIP_LIBRARY=${SB_INSTALL_DIR}/lib/liblaszip.so
+  ${LASZIP_LIBRARY_ARGS}
 	-DWITH_TESTS=OFF
 	-DCMAKE_BUILD_TYPE=Release
-    -DCMAKE_INSTALL_PREFIX:PATH=${SB_INSTALL_DIR}
+  -DCMAKE_INSTALL_PREFIX:PATH=${SB_INSTALL_DIR}
+  ${EXTRA_CMAKE_ARGS}
+
   #--Build step-----------------
   BINARY_DIR        ${_SB_BINARY_DIR}
   #--Install step---------------
