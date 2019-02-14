@@ -123,10 +123,10 @@ foreach(lib ${custom_libs})
 endforeach()
 
 ## Add smvs Build
-
+# TODO: change back to simonfuhrmann/mve
 externalproject_add(mve
-    GIT_REPOSITORY  https://github.com/simonfuhrmann/mve.git
-    GIT_TAG         2106a5b0aef61a7f744551510b1b4c5d8e3be594
+    GIT_REPOSITORY  https://github.com/pierotofy/mve.git
+    GIT_TAG         cygwin
     UPDATE_COMMAND  ""
     SOURCE_DIR      ${SB_SOURCE_DIR}/elibs/mve
     CONFIGURE_COMMAND ""

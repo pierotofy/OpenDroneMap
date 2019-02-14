@@ -16,7 +16,7 @@ install() {
     apt-cyg update
 
     echo "Installing Required Requisites"
-    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel libxml2-devel libiconv-devel
+    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel libxml2-devel libiconv-devel libboost_python-devel
 
     # Upgrade pip
     pip2 install --upgrade pip
@@ -26,19 +26,9 @@ install() {
 
     ## Installing OpenSfM Requisites
     echo "Installing OpenSfM Dependencies"
+    apt-cyg install gcc-fortran
     pip install -U numpy==1.15.4
-    pip install -U PyYAML cloudpickle six exifread gpxpy xmltodict appsettings https://github.com/gipit/gippy/archive/1.0.0.zip loky shapely scipy numpy==1.15.4 pyproj repoze.lru libboost_python-devel
-
-    # apt-get install -y -qq python-networkx \
-    #                      libgoogle-glog-dev \
-    #                      libsuitesparse-dev \
-    #                      libboost-filesystem-dev \
-    #                      libboost-iostreams-dev \
-    #                      libboost-regex-dev \
-    #                      libboost-python-dev \
-    #                      libboost-date-time-dev \
-    #                      libboost-thread-dev \
-    #                      python-pyproj
+    pip install -U PyYAML cloudpickle six exifread gpxpy xmltodict appsettings https://github.com/gipit/gippy/archive/1.0.0.zip loky shapely scipy numpy==1.15.4 pyproj repoze.lru
 
     echo "Installing Ecto Dependencies"
 
