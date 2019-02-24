@@ -1,0 +1,1559 @@
+diff -uNr opencv-2.4.12.2.orig/3rdparty/include/opencl/1.2/CL/cl.hpp opencv-2.4.12.2/3rdparty/include/opencl/1.2/CL/cl.hpp
+--- opencv-2.4.12.2.orig/3rdparty/include/opencl/1.2/CL/cl.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/include/opencl/1.2/CL/cl.hpp	2015-09-22 10:33:50.818083400 +0900
+@@ -144,7 +144,7 @@
+ #ifndef CL_HPP_
+ #define CL_HPP_
+ 
+-#ifdef _WIN32
++#if defined _WIN32 || defined __CYGWIN__
+ 
+ #include <windows.h>
+ #include <malloc.h>
+@@ -1022,7 +1022,7 @@
+     */
+     inline int compare_exchange(volatile int * dest, int exchange, int comparand)
+     {
+-#ifdef _WIN32
++#if defined _WIN32 || defined __CYGWIN__
+         return (int)(InterlockedCompareExchange(
+            (volatile long*)dest, 
+            (long)exchange, 
+@@ -2635,7 +2635,7 @@
+ }
+ 
+ 
+-#ifdef _WIN32
++#if defined _WIN32 || defined __CYGWIN__
+ __declspec(selectany) volatile int Context::default_initialized_ = __DEFAULT_NOT_INITIALIZED;
+ __declspec(selectany) Context Context::default_;
+ __declspec(selectany) volatile cl_int Context::default_error_ = CL_SUCCESS;
+@@ -6093,7 +6093,7 @@
+     }
+ };
+ 
+-#ifdef _WIN32
++#if defined _WIN32 || defined __CYGWIN__
+ __declspec(selectany) volatile int CommandQueue::default_initialized_ = __DEFAULT_NOT_INITIALIZED;
+ __declspec(selectany) CommandQueue CommandQueue::default_;
+ __declspec(selectany) volatile cl_int CommandQueue::default_error_ = CL_SUCCESS;
+@@ -12298,7 +12298,7 @@
+ 
+ } // namespace cl
+ 
+-#ifdef _WIN32
++#if defined _WIN32 || defined __CYGWIN__
+ #pragma pop_macro("max")
+ #endif // _WIN32
+ 
+diff -uNr opencv-2.4.12.2.orig/3rdparty/include/opencl/1.2/CL/cl_dx9_media_sharing.h opencv-2.4.12.2/3rdparty/include/opencl/1.2/CL/cl_dx9_media_sharing.h
+--- opencv-2.4.12.2.orig/3rdparty/include/opencl/1.2/CL/cl_dx9_media_sharing.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/include/opencl/1.2/CL/cl_dx9_media_sharing.h	2015-09-22 10:33:50.917148500 +0900
+@@ -40,7 +40,7 @@
+ typedef cl_uint             cl_dx9_media_adapter_type_khr;
+ typedef cl_uint             cl_dx9_media_adapter_set_khr;
+     
+-#if defined(_WIN32)
++#if defined _WIN32 || defined __CYGWIN__
+ #include <d3d9.h>
+ typedef struct _cl_dx9_surface_info_khr
+ {
+diff -uNr opencv-2.4.12.2.orig/3rdparty/include/opencl/1.2/CL/cl_platform.h opencv-2.4.12.2/3rdparty/include/opencl/1.2/CL/cl_platform.h
+--- opencv-2.4.12.2.orig/3rdparty/include/opencl/1.2/CL/cl_platform.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/include/opencl/1.2/CL/cl_platform.h	2015-09-22 10:33:50.929156500 +0900
+@@ -35,7 +35,7 @@
+ extern "C" {
+ #endif
+ 
+-#if defined(_WIN32)
++#if defined _WIN32 || defined __CYGWIN__
+     #define CL_API_ENTRY
+     #define CL_API_CALL     __stdcall
+     #define CL_CALLBACK     __stdcall
+@@ -76,7 +76,7 @@
+     #define CL_API_SUFFIX__VERSION_1_2
+     #define CL_EXT_SUFFIX__VERSION_1_2
+     
+-    #ifdef __GNUC__
++    #if defined __GNUC__
+         #ifdef CL_USE_DEPRECATED_OPENCL_1_0_APIS
+             #define CL_EXT_SUFFIX__VERSION_1_0_DEPRECATED
+             #define CL_EXT_PREFIX__VERSION_1_0_DEPRECATED    
+@@ -115,6 +115,28 @@
+         #define CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED
+         #define CL_EXT_PREFIX__VERSION_1_1_DEPRECATED
+     #endif
++
++    #ifdef __CYGWIN__
++        #undef CL_EXT_SUFFIX__VERSION_1_0_DEPRECATED    
++        #undef CL_EXT_PREFIX__VERSION_1_0_DEPRECATED    
++        #undef CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED
++        #undef CL_EXT_PREFIX__VERSION_1_1_DEPRECATED    
++        #ifdef CL_USE_DEPRECATED_OPENCL_1_0_APIS
++            #define CL_EXT_SUFFIX__VERSION_1_0_DEPRECATED    
++            #define CL_EXT_PREFIX__VERSION_1_0_DEPRECATED    
++        #else
++            #define CL_EXT_SUFFIX__VERSION_1_0_DEPRECATED 
++            #define CL_EXT_PREFIX__VERSION_1_0_DEPRECATED __declspec(deprecated)     
++        #endif
++    
++        #ifdef CL_USE_DEPRECATED_OPENCL_1_1_APIS
++            #define CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED
++            #define CL_EXT_PREFIX__VERSION_1_1_DEPRECATED    
++        #else
++            #define CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED 
++            #define CL_EXT_PREFIX__VERSION_1_1_DEPRECATED __declspec(deprecated)     
++        #endif
++    #endif
+ #endif
+ 
+ #if (defined (_WIN32) && defined(_MSC_VER))
+@@ -349,7 +371,7 @@
+ #endif
+ 
+ #if defined( __SSE__ )
+-    #if defined( __MINGW64__ )
++    #if defined( __MINGW64__ ) || (defined __CYGWIN__ && defined __x86_64)
+         #include <intrin.h>
+     #else
+         #include <xmmintrin.h>
+@@ -363,7 +385,7 @@
+ #endif
+ 
+ #if defined( __SSE2__ )
+-    #if defined( __MINGW64__ )
++    #if defined( __MINGW64__ ) || (defined __CYGWIN__ && defined __x86_64)
+         #include <intrin.h>
+     #else
+         #include <emmintrin.h>
+@@ -435,7 +457,7 @@
+ #endif
+ 
+ #if defined( __AVX__ )
+-    #if defined( __MINGW64__ )
++    #if defined( __MINGW64__ ) || (defined __CYGWIN__ && defined __x86_64)
+         #include <intrin.h>
+     #else
+         #include <immintrin.h> 
+diff -uNr opencv-2.4.12.2.orig/3rdparty/libjasper/CMakeLists.txt opencv-2.4.12.2/3rdparty/libjasper/CMakeLists.txt
+--- opencv-2.4.12.2.orig/3rdparty/libjasper/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/libjasper/CMakeLists.txt	2015-09-22 10:33:50.960178100 +0900
+@@ -28,7 +28,7 @@
+ ocv_warnings_disable(CMAKE_C_FLAGS -Wunused-parameter) # clang
+ ocv_warnings_disable(CMAKE_C_FLAGS /wd4013 /wd4018 /wd4101 /wd4244 /wd4267 /wd4715) # vs2005
+ 
+-if(UNIX)
++if(UNIX AND NOT CYGWIN)
+   if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+   endif()
+diff -uNr opencv-2.4.12.2.orig/3rdparty/libjpeg/CMakeLists.txt opencv-2.4.12.2/3rdparty/libjpeg/CMakeLists.txt
+--- opencv-2.4.12.2.orig/3rdparty/libjpeg/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/libjpeg/CMakeLists.txt	2015-09-22 10:33:50.970184800 +0900
+@@ -15,7 +15,7 @@
+ 
+ add_library(${JPEG_LIBRARY} STATIC ${lib_srcs} ${lib_hdrs})
+ 
+-if(UNIX)
++if(UNIX AND NOT CYGWIN)
+   if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+   endif()
+diff -uNr opencv-2.4.12.2.orig/3rdparty/libpng/CMakeLists.txt opencv-2.4.12.2/3rdparty/libpng/CMakeLists.txt
+--- opencv-2.4.12.2.orig/3rdparty/libpng/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/libpng/CMakeLists.txt	2015-09-22 10:33:50.980191400 +0900
+@@ -36,7 +36,7 @@
+ add_library(${PNG_LIBRARY} STATIC ${lib_srcs} ${lib_hdrs})
+ target_link_libraries(${PNG_LIBRARY} ${ZLIB_LIBRARY})
+ 
+-if(UNIX)
++if(UNIX AND NOT CYGWIN)
+   if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+   endif()
+diff -uNr opencv-2.4.12.2.orig/3rdparty/libtiff/CMakeLists.txt opencv-2.4.12.2/3rdparty/libtiff/CMakeLists.txt
+--- opencv-2.4.12.2.orig/3rdparty/libtiff/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/libtiff/CMakeLists.txt	2015-09-22 10:33:50.991198100 +0900
+@@ -96,8 +96,10 @@
+ 
+ ocv_warnings_disable(CMAKE_C_FLAGS /wd4267 /wd4244 /wd4018)
+ 
+-if(UNIX AND (CMAKE_COMPILER_IS_GNUCXX OR CV_ICC))
+-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
++if(UNIX AND NOT CYGWIN)
++  if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
++    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
++  endif()
+ endif()
+ 
+ add_library(${TIFF_LIBRARY} STATIC ${lib_srcs})
+diff -uNr opencv-2.4.12.2.orig/3rdparty/openexr/CMakeLists.txt opencv-2.4.12.2/3rdparty/openexr/CMakeLists.txt
+--- opencv-2.4.12.2.orig/3rdparty/openexr/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/openexr/CMakeLists.txt	2015-09-22 10:33:51.007209200 +0900
+@@ -43,7 +43,7 @@
+ ocv_warnings_disable(CMAKE_CXX_FLAGS /wd4244) # vs2008
+ ocv_warnings_disable(CMAKE_CXX_FLAGS /wd4267) # vs2008 Win64
+ 
+-if(UNIX AND (CMAKE_COMPILER_IS_GNUCXX OR CV_ICC))
++if(UNIX AND (CMAKE_COMPILER_IS_GNUCXX OR CV_ICC) AND NOT CYGWIN)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+ endif()
+ 
+diff -uNr opencv-2.4.12.2.orig/3rdparty/zlib/CMakeLists.txt opencv-2.4.12.2/3rdparty/zlib/CMakeLists.txt
+--- opencv-2.4.12.2.orig/3rdparty/zlib/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/3rdparty/zlib/CMakeLists.txt	2015-09-22 10:33:51.019217100 +0900
+@@ -76,7 +76,7 @@
+ add_library(${ZLIB_LIBRARY} STATIC ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+ set_target_properties(${ZLIB_LIBRARY} PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
+ 
+-if(UNIX)
++if(UNIX AND NOT CYGWIN)
+   if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+   endif()
+diff -uNr opencv-2.4.12.2.orig/CMakeLists.txt opencv-2.4.12.2/CMakeLists.txt
+--- opencv-2.4.12.2.orig/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/CMakeLists.txt	2015-09-22 10:33:51.031225500 +0900
+@@ -145,7 +145,7 @@
+ OCV_OPTION(WITH_CUBLAS         "Include NVidia Cuda Basic Linear Algebra Subprograms (BLAS) library support" OFF IF (CMAKE_VERSION VERSION_GREATER "2.8" AND NOT IOS) )
+ OCV_OPTION(WITH_NVCUVID        "Include NVidia Video Decoding library support"                               OFF IF (CMAKE_VERSION VERSION_GREATER "2.8" AND NOT ANDROID AND NOT IOS AND NOT APPLE) )
+ OCV_OPTION(WITH_EIGEN          "Include Eigen2/Eigen3 support"               ON)
+-OCV_OPTION(WITH_VFW            "Include Video for Windows support"           ON   IF WIN32 )
++OCV_OPTION(WITH_VFW            "Include Video for Windows support"           ON   IF (WIN32 OR CYGWIN) )
+ OCV_OPTION(WITH_FFMPEG         "Include FFMPEG support"                      ON   IF (NOT ANDROID AND NOT IOS))
+ OCV_OPTION(WITH_GSTREAMER      "Include Gstreamer support"                   ON   IF (UNIX AND NOT ANDROID) )
+ OCV_OPTION(WITH_GSTREAMER_0_10 "Enable Gstreamer 0.10 support (instead of 1.x)"   OFF )
+@@ -161,7 +161,7 @@
+ OCV_OPTION(WITH_PVAPI          "Include Prosilica GigE support"              ON   IF (NOT ANDROID AND NOT IOS) )
+ OCV_OPTION(WITH_GIGEAPI        "Include Smartek GigE support"                ON   IF (NOT ANDROID AND NOT IOS) )
+ OCV_OPTION(WITH_QT             "Build with Qt Backend support"               OFF  IF (NOT ANDROID AND NOT IOS) )
+-OCV_OPTION(WITH_WIN32UI        "Build with Win32 UI Backend support"         ON   IF WIN32 )
++OCV_OPTION(WITH_WIN32UI        "Build with Win32 UI Backend support"         ON   IF (WIN32 OR CYGWIN) )
+ OCV_OPTION(WITH_QUICKTIME      "Use QuickTime for Video I/O insted of QTKit" OFF  IF APPLE )
+ OCV_OPTION(WITH_TBB            "Include Intel TBB support"                   OFF  IF (NOT IOS) )
+ OCV_OPTION(WITH_OPENMP         "Include OpenMP support"                      OFF)
+@@ -170,7 +170,7 @@
+ OCV_OPTION(WITH_UNICAP         "Include Unicap support (GPL)"                OFF  IF (UNIX AND NOT APPLE AND NOT ANDROID) )
+ OCV_OPTION(WITH_V4L            "Include Video 4 Linux support"               ON   IF (UNIX AND NOT ANDROID) )
+ OCV_OPTION(WITH_LIBV4L         "Use libv4l for Video 4 Linux support"        ON   IF (UNIX AND NOT ANDROID) )
+-OCV_OPTION(WITH_DSHOW          "Build HighGUI with DirectShow support"       ON   IF (WIN32 AND NOT ARM) )
++OCV_OPTION(WITH_DSHOW          "Build HighGUI with DirectShow support"       ON   IF ((WIN32 AND NOT ARM) OR CYGWIN))
+ OCV_OPTION(WITH_MSMF           "Build HighGUI with Media Foundation support" OFF  IF WIN32 )
+ OCV_OPTION(WITH_XIMEA          "Include XIMEA cameras support"               OFF  IF (NOT ANDROID) )
+ OCV_OPTION(WITH_XINE           "Include Xine support (GPL)"                  OFF  IF (UNIX AND NOT APPLE AND NOT ANDROID) )
+@@ -356,6 +356,9 @@
+   # Postfix of DLLs:
+   set(OPENCV_DLLVERSION "${OPENCV_VERSION_MAJOR}${OPENCV_VERSION_MINOR}${OPENCV_VERSION_PATCH}")
+   set(OPENCV_DEBUG_POSTFIX d)
++elseif(CYGWIN)
++  set(OPENCV_DLLVERSION "")
++  set(OPENCV_DEBUG_POSTFIX d)
+ else()
+   # Postfix of so's:
+   set(OPENCV_DLLVERSION "")
+diff -uNr opencv-2.4.12.2.orig/cmake/OpenCVCompilerOptions.cmake opencv-2.4.12.2/cmake/OpenCVCompilerOptions.cmake
+--- opencv-2.4.12.2.orig/cmake/OpenCVCompilerOptions.cmake	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/cmake/OpenCVCompilerOptions.cmake	2015-09-22 10:33:51.043233100 +0900
+@@ -106,7 +106,7 @@
+   endif()
+ 
+   # We need pthread's
+-  if(UNIX AND NOT ANDROID AND NOT (APPLE AND CMAKE_COMPILER_IS_CLANGCXX))
++  if(UNIX AND NOT ANDROID AND NOT (APPLE AND CMAKE_COMPILER_IS_CLANGCXX) AND NOT CYGWIN)
+     add_extra_compiler_option(-pthread)
+   endif()
+ 
+@@ -272,7 +272,9 @@
+ if(NOT BUILD_SHARED_LIBS AND ((CMAKE_COMPILER_IS_GNUCXX AND NOT ANDROID) OR QNX))
+   # Android does not need these settings because they are already set by toolchain file
+   set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} stdc++)
+-  set(OPENCV_EXTRA_FLAGS "-fPIC ${OPENCV_EXTRA_FLAGS}")
++  if(NOT CYGWIN)
++    set(OPENCV_EXTRA_FLAGS "-fPIC ${OPENCV_EXTRA_FLAGS}")
++  endif()
+ endif()
+ 
+ # Add user supplied extra options (optimization, etc...)
+diff -uNr opencv-2.4.12.2.orig/cmake/OpenCVFindLibsGUI.cmake opencv-2.4.12.2/cmake/OpenCVFindLibsGUI.cmake
+--- opencv-2.4.12.2.orig/cmake/OpenCVFindLibsGUI.cmake	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/cmake/OpenCVFindLibsGUI.cmake	2015-09-22 10:33:51.054240600 +0900
+@@ -52,7 +52,16 @@
+ ocv_clear_vars(HAVE_OPENGL HAVE_QT_OPENGL)
+ if(WITH_OPENGL)
+   if(WITH_WIN32UI OR (HAVE_QT AND QT_QTOPENGL_FOUND) OR HAVE_GTKGLEXT)
+-    find_package (OpenGL QUIET)
++    if(CYGWIN)
++      set(OPENGL_gl_LIBRARY opengl32)
++      set(OPENGL_glu_LIBRARY glu32)
++      set(WIN32 TRUE)
++      include(FindOpenGL)
++      unset(WIN32)
++    endif()
++    if(NOT OPENGL_FOUND)
++      find_package (OpenGL QUIET)
++    endif()
+     if(OPENGL_FOUND)
+       set(HAVE_OPENGL TRUE)
+       list(APPEND OPENCV_LINKER_LIBS ${OPENGL_LIBRARIES})
+diff -uNr opencv-2.4.12.2.orig/cmake/OpenCVFindLibsVideo.cmake opencv-2.4.12.2/cmake/OpenCVFindLibsVideo.cmake
+--- opencv-2.4.12.2.orig/cmake/OpenCVFindLibsVideo.cmake	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/cmake/OpenCVFindLibsVideo.cmake	2015-09-22 12:37:21.658958300 +0900
+@@ -8,6 +8,18 @@
+     "${OpenCV_BINARY_DIR}"
+     "${OpenCV_SOURCE_DIR}/cmake/checks/vfwtest.cpp"
+     CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=vfw32")
++  if(NOT HAVE_VFW)
++    try_compile(HAVE_VFW
++      "${OpenCV_BINARY_DIR}"
++      "${OpenCV_SOURCE_DIR}/cmake/checks/vfwtest.cpp"
++      CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=msvfw32")
++  endif()
++  if(NOT HAVE_VFW)
++    try_compile(HAVE_VFW
++      "${OpenCV_BINARY_DIR}"
++      "${OpenCV_SOURCE_DIR}/cmake/checks/vfwtest.cpp"
++      CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=avifil32")
++  endif()
+ endif(WITH_VFW)
+ 
+ # --- GStreamer ---
+@@ -212,9 +224,70 @@
+       set(HAVE_FFMPEG TRUE)
+     endif()
+ 
++    if(CYGWIN AND NOT HAVE_FFMPEG AND NOT "${CYGWIN_FFMPEG_BUILT_DIR}" STREQUAL "")
++      if(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavcodec/avcodec.h" AND EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavcodec/libavcodec.a")
++        set(HAVE_FFMPEG_CODEC TRUE)
++        FILE(READ ${CYGWIN_FFMPEG_BUILT_DIR}/libavcodec/version.h LIBAVCODEC_VERSION_H)
++        STRING(REGEX REPLACE ".*\#define *LIBAVCODEC_VERSION_MAJOR *([0-9]+).*" "\\1" LIBAVCODEC_VERSION_MAJOR ${LIBAVCODEC_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVCODEC_VERSION_MINOR *([0-9]+).*" "\\1" LIBAVCODEC_VERSION_MINOR ${LIBAVCODEC_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVCODEC_VERSION_MICRO *([0-9]+).*" "\\1" LIBAVCODEC_VERSION_MICRO ${LIBAVCODEC_VERSION_H})
++        set(ALIASOF_libavcodec_VERSION ${LIBAVCODEC_VERSION_MAJOR}.${LIBAVCODEC_VERSION_MINOR}.${LIBAVCODEC_VERSION_MICRO})
++      endif()
++      if(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavformat/avformat.h" AND EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavformat/libavformat.a")
++        set(HAVE_FFMPEG_FORMAT TRUE)
++        FILE(READ ${CYGWIN_FFMPEG_BUILT_DIR}/libavformat/version.h LIBAVFORMAT_VERSION_H)
++        STRING(REGEX REPLACE ".*\#define *LIBAVFORMAT_VERSION_MAJOR *([0-9]+).*" "\\1" LIBAVFORMAT_VERSION_MAJOR ${LIBAVFORMAT_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVFORMAT_VERSION_MINOR *([0-9]+).*" "\\1" LIBAVFORMAT_VERSION_MINOR ${LIBAVFORMAT_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVFORMAT_VERSION_MICRO *([0-9]+).*" "\\1" LIBAVFORMAT_VERSION_MICRO ${LIBAVFORMAT_VERSION_H})
++        set(ALIASOF_libavformat_VERSION ${LIBAVFORMAT_VERSION_MAJOR}.${LIBAVFORMAT_VERSION_MINOR}.${LIBAVFORMAT_VERSION_MICRO})
++      endif()
++      if(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavutil/avutil.h" AND EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavutil/libavutil.a")
++        set(HAVE_FFMPEG_UTIL TRUE)
++        FILE(READ ${CYGWIN_FFMPEG_BUILT_DIR}/libavutil/version.h LIBAVUTIL_VERSION_H)
++        STRING(REGEX REPLACE ".*\#define *LIBAVUTIL_VERSION_MAJOR *([0-9]+).*" "\\1" LIBAVUTIL_VERSION_MAJOR ${LIBAVUTIL_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVUTIL_VERSION_MINOR *([0-9]+).*" "\\1" LIBAVUTIL_VERSION_MINOR ${LIBAVUTIL_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVUTIL_VERSION_MICRO *([0-9]+).*" "\\1" LIBAVUTIL_VERSION_MICRO ${LIBAVUTIL_VERSION_H})
++        set(ALIASOF_libavutil_VERSION ${LIBAVUTIL_VERSION_MAJOR}.${LIBAVUTIL_VERSION_MINOR}.${LIBAVUTIL_VERSION_MICRO})
++      endif()
++      if(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libswscale/swscale.h" AND EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libswscale/libswscale.a")
++        set(HAVE_FFMPEG_SWSCALE TRUE)
++        FILE(READ ${CYGWIN_FFMPEG_BUILT_DIR}/libswscale/version.h LIBSWSCALE_VERSION_H)
++        STRING(REGEX REPLACE ".*\#define *LIBSWSCALE_VERSION_MAJOR *([0-9]+).*" "\\1" LIBSWSCALE_VERSION_MAJOR ${LIBSWSCALE_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBSWSCALE_VERSION_MINOR *([0-9]+).*" "\\1" LIBSWSCALE_VERSION_MINOR ${LIBSWSCALE_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBSWSCALE_VERSION_MICRO *([0-9]+).*" "\\1" LIBSWSCALE_VERSION_MICRO ${LIBSWSCALE_VERSION_H})
++        set(ALIASOF_libswscale_VERSION ${LIBSWSCALE_VERSION_MAJOR}.${LIBSWSCALE_VERSION_MINOR}.${LIBSWSCALE_VERSION_MICRO})
++      endif()
++      if(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libswresample/swresample.h" AND EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libswresample/libswresample.a")
++        set(HAVE_FFMPEG_RESAMPLE TRUE)
++        FILE(READ ${CYGWIN_FFMPEG_BUILT_DIR}/libswresample/version.h LIBSWRESAMPLE_VERSION_H)
++        STRING(REGEX REPLACE ".*\#define *LIBSWRESAMPLE_VERSION_MAJOR *([0-9]+).*" "\\1" LIBSWRESAMPLE_VERSION_MAJOR ${LIBSWRESAMPLE_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBSWRESAMPLE_VERSION_MINOR *([0-9]+).*" "\\1" LIBSWRESAMPLE_VERSION_MINOR ${LIBSWRESAMPLE_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBSWRESAMPLE_VERSION_MICRO *([0-9]+).*" "\\1" LIBSWRESAMPLE_VERSION_MICRO ${LIBSWRESAMPLE_VERSION_H})
++        set(ALIASOF_libavresample_VERSION ${LIBSWRESAMPLE_VERSION_MAJOR}.${LIBSWRESAMPLE_VERSION_MINOR}.${LIBSWRESAMPLE_VERSION_MICRO}"(swresample)")
++      elseif(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavresample/avresample.h" AND EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libavresample/libavresample.a")
++        set(HAVE_FFMPEG_RESAMPLE TRUE)
++        FILE(READ ${CYGWIN_FFMPEG_BUILT_DIR}/libavresample/version.h LIBAVRESAMPLE_VERSION_H)
++        STRING(REGEX REPLACE ".*\#define *LIBAVRESAMPLE_VERSION_MAJOR *([0-9]+).*" "\\1" LIBAVRESAMPLE_VERSION_MAJOR ${LIBAVRESAMPLE_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVRESAMPLE_VERSION_MINOR *([0-9]+).*" "\\1" LIBAVRESAMPLE_VERSION_MINOR ${LIBAVRESAMPLE_VERSION_H})
++        STRING(REGEX REPLACE ".*\#define *LIBAVRESAMPLE_VERSION_MICRO *([0-9]+).*" "\\1" LIBAVRESAMPLE_VERSION_MICRO ${LIBAVRESAMPLE_VERSION_H})
++        set(ALIASOF_libavresample_VERSION ${LIBAVRESAMPLE_VERSION_MAJOR}.${LIBAVRESAMPLE_VERSION_MINOR}.${LIBAVRESAMPLE_VERSION_MICRO}"(avresample)")
++      endif()
++      if(HAVE_FFMPEG_CODEC AND HAVE_FFMPEG_FORMAT AND HAVE_FFMPEG_UTIL AND HAVE_FFMPEG_SWSCALE)
++        set(HAVE_FFMPEG TRUE)
++        set(HAVE_GENTOO_FFMPEG TRUE)
++      else()
++        set(CYGWIN_FFMPEG_BUILT_DIR "")
++      endif()
++    endif()
++
+     if(HAVE_FFMPEG)
+       # Find the bzip2 library because it is required on some systems
+-      FIND_LIBRARY(BZIP2_LIBRARIES NAMES bz2 bzip2)
++      if(CYGWIN)
++        include(FindBZip2)
++      endif()
++      if(NOT BZIP2_LIBRARIES)
++        FIND_LIBRARY(BZIP2_LIBRARIES NAMES bz2 bzip2)
++      endif()
+       if(NOT BZIP2_LIBRARIES)
+         # Do an other trial
+         FIND_FILE(BZIP2_LIBRARIES NAMES libbz2.so.1 PATHS /lib)
+@@ -273,6 +346,33 @@
+   endif()
+ endif(WIN32)
+ 
++if(CYGWIN)
++  list(APPEND HIGHGUI_LIBRARIES comctl32 gdi32 ole32 setupapi ws2_32 msvfw32 avifil32)
++  if(NOT "${CYGWIN_FFMPEG_BUILT_DIR}" STREQUAL "")
++    list(APPEND HIGHGUI_LIBRARIES "${CYGWIN_FFMPEG_BUILT_DIR}/libavformat/libavformat.a")
++    list(APPEND HIGHGUI_LIBRARIES "${CYGWIN_FFMPEG_BUILT_DIR}/libavcodec/libavcodec.a")
++    if(HAVE_FFMPEG_RESAMPLE)
++      if(EXISTS "${CYGWIN_FFMPEG_BUILT_DIR}/libswresample/libswresample.a")
++        list(APPEND HIGHGUI_LIBRARIES "${CYGWIN_FFMPEG_BUILT_DIR}/libswresample/libswresample.a")
++      else()
++        list(APPEND HIGHGUI_LIBRARIES "${CYGWIN_FFMPEG_BUILT_DIR}/libavresample/libavresample.a")
++      endif()
++    endif()
++    list(APPEND HIGHGUI_LIBRARIES "${CYGWIN_FFMPEG_BUILT_DIR}/libswscale/libswscale.a")
++    list(APPEND HIGHGUI_LIBRARIES "${CYGWIN_FFMPEG_BUILT_DIR}/libavutil/libavutil.a")
++    if(EXISTS "/usr/lib/liblzma.dll.a" OR EXISTS "/usr/lib/liblzma.a")
++      list(APPEND HIGHGUI_LIBRARIES lzma)
++    endif()
++    if(EXISTS "/usr/lib/libiconv.dll.a" OR EXISTS "/usr/lib/libiconv.a")
++      list(APPEND HIGHGUI_LIBRARIES iconv)
++    endif()
++    if(EXISTS "/usr/lib/libz.dll.a" OR EXISTS "/usr/lib/libz.a")
++      list(APPEND HIGHGUI_LIBRARIES z)
++    endif()
++  endif()
++  list(APPEND HIGHGUI_LIBRARIES strmiids /usr/lib/w32api/libuuid.a advapi32 oleaut32 user32 avicap32 winmm)
++endif(CYGWIN)
++
+ # --- Apple AV Foundation ---
+ if(WITH_AVFOUNDATION)
+   set(HAVE_AVFOUNDATION YES)
+diff -uNr opencv-2.4.12.2.orig/cmake/OpenCVGenPkgconfig.cmake.rej opencv-2.4.12.2/cmake/OpenCVGenPkgconfig.cmake.rej
+--- opencv-2.4.12.2.orig/cmake/OpenCVGenPkgconfig.cmake.rej	1970-01-01 09:00:00.000000000 +0900
++++ opencv-2.4.12.2/cmake/OpenCVGenPkgconfig.cmake.rej	2015-09-22 10:33:51.078256500 +0900
+@@ -0,0 +1,13 @@
++--- cmake/OpenCVGenPkgconfig.cmake	2014-10-01 16:33:36.000000000 +0900
+++++ cmake/OpenCVGenPkgconfig.cmake	2014-10-08 22:10:12.608571900 +0900
++@@ -39,6 +39,10 @@
++ foreach(CVLib ${OpenCV_LIB_COMPONENTS})
++   get_target_property(libpath ${CVLib} LOCATION_${CMAKE_BUILD_TYPE})
++   get_filename_component(libname "${libpath}" NAME)
+++  if(CYGWIN AND BUILD_SHARED_LIBS)
+++    string(REGEX REPLACE "^cygopencv" "libopencv" libname "${libname}")
+++    string(REGEX REPLACE "-${OPENCV_SOVERSION}.dll$" ".dll.a" libname "${libname}")
+++  endif()
++ 
++   if(INSTALL_TO_MANGLED_PATHS)
++     set(libname "${libname}.${OPENCV_VERSION}")
+diff -uNr opencv-2.4.12.2.orig/cmake/OpenCVPCHSupport.cmake opencv-2.4.12.2/cmake/OpenCVPCHSupport.cmake
+--- opencv-2.4.12.2.orig/cmake/OpenCVPCHSupport.cmake	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/cmake/OpenCVPCHSupport.cmake	2015-09-22 10:33:51.087262700 +0900
+@@ -46,7 +46,7 @@
+       LIST(APPEND ${_out_compile_flags} "${CMAKE_CXX_COMPILE_OPTIONS_PIC}")
+     elseif(CMAKE_COMPILER_IS_GNUCXX)
+       GET_TARGET_PROPERTY(_targetType ${_PCH_current_target} TYPE)
+-      IF(${_targetType} STREQUAL SHARED_LIBRARY AND NOT WIN32)
++      IF(${_targetType} STREQUAL SHARED_LIBRARY AND NOT WIN32 AND NOT CYGWIN)
+         LIST(APPEND ${_out_compile_flags} "-fPIC")
+       ENDIF()
+     endif()
+diff -uNr opencv-2.4.12.2.orig/modules/core/include/opencv2/core/types_c.h opencv-2.4.12.2/modules/core/include/opencv2/core/types_c.h
+--- opencv-2.4.12.2.orig/modules/core/include/opencv2/core/types_c.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/core/include/opencv2/core/types_c.h	2015-09-22 10:33:51.099270300 +0900
+@@ -108,7 +108,7 @@
+ 
+ #endif // SKIP_INCLUDES
+ 
+-#if defined WIN32 || defined _WIN32
++#if defined WIN32 || defined _WIN32 || defined __CYGWIN__
+ #  define CV_CDECL __cdecl
+ #  define CV_STDCALL __stdcall
+ #else
+@@ -144,7 +144,7 @@
+ #  endif
+ #endif /* CV_INLINE */
+ 
+-#if (defined WIN32 || defined _WIN32 || defined WINCE) && defined CVAPI_EXPORTS
++#if (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__) && defined CVAPI_EXPORTS
+ #  define CV_EXPORTS __declspec(dllexport)
+ #else
+ #  define CV_EXPORTS
+diff -uNr opencv-2.4.12.2.orig/modules/core/src/gl_core_3_1.cpp opencv-2.4.12.2/modules/core/src/gl_core_3_1.cpp
+--- opencv-2.4.12.2.orig/modules/core/src/gl_core_3_1.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/core/src/gl_core_3_1.cpp	2015-09-22 10:33:51.146302100 +0900
+@@ -94,7 +94,7 @@
+         }
+     #endif // __sgi || __sun
+ 
+-    #if defined(_WIN32)
++    #if defined(_WIN32) || defined(__CYGWIN__)
+         #ifdef _MSC_VER
+             #pragma warning(disable: 4055)
+             #pragma warning(disable: 4054)
+@@ -124,7 +124,7 @@
+         }
+     #endif // _WIN32
+ 
+-    #if defined(_WIN32)
++    #if defined(_WIN32) || defined(__CYGWIN__)
+         #define CV_GL_GET_PROC_ADDRESS(name) WinGetProcAddress(name)
+     #elif defined(__APPLE__)
+         #define CV_GL_GET_PROC_ADDRESS(name) AppleGLGetProcAddress(name)
+diff -uNr opencv-2.4.12.2.orig/modules/core/src/gl_core_3_1.hpp opencv-2.4.12.2/modules/core/src/gl_core_3_1.hpp
+--- opencv-2.4.12.2.orig/modules/core/src/gl_core_3_1.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/core/src/gl_core_3_1.hpp	2015-09-22 10:33:51.251370800 +0900
+@@ -60,7 +60,7 @@
+ #define __gl_ATI_h_
+ 
+ #ifndef APIENTRY
+-    #if defined(__MINGW32__)
++    #if defined(__MINGW32__) || defined(__CYGWIN__)
+         #ifndef WIN32_LEAN_AND_MEAN
+             #define WIN32_LEAN_AND_MEAN 1
+         #endif
+@@ -83,7 +83,7 @@
+ 
+ #ifndef CODEGEN_FUNCPTR
+     #define CODEGEN_REMOVE_FUNCPTR
+-    #if defined(_WIN32)
++    #if defined(_WIN32) || defined(__CYGWIN__)
+         #define CODEGEN_FUNCPTR APIENTRY
+     #else
+         #define CODEGEN_FUNCPTR
+@@ -175,6 +175,8 @@
+         typedef __int32 int32_t;
+         typedef __int64 int64_t;
+         typedef unsigned __int64 uint64_t;
++    #elif defined(__CYGWIN__)
++        #include <stdint.h>
+     #else
+         // Fallback if nothing above works
+         #include <inttypes.h>
+diff -uNr opencv-2.4.12.2.orig/modules/core/src/precomp.hpp opencv-2.4.12.2/modules/core/src/precomp.hpp
+--- opencv-2.4.12.2.orig/modules/core/src/precomp.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/core/src/precomp.hpp	2015-09-22 10:33:51.303405400 +0900
+@@ -82,7 +82,7 @@
+ #define CV_MAX_8U(a,b)       ((a) + CV_FAST_CAST_8U((b) - (a)))
+ 
+ 
+-#if defined WIN32 || defined _WIN32
++#if defined WIN32 || defined _WIN32 || defined __CYGWIN__
+ void deleteThreadAllocData();
+ void deleteThreadRNGData();
+ #endif
+diff -uNr opencv-2.4.12.2.orig/modules/core/src/rand.cpp opencv-2.4.12.2/modules/core/src/rand.cpp
+--- opencv-2.4.12.2.orig/modules/core/src/rand.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/core/src/rand.cpp	2015-09-22 10:33:51.318416300 +0900
+@@ -48,7 +48,7 @@
+ 
+ #include "precomp.hpp"
+ 
+-#if defined WIN32 || defined WINCE
++#if defined WIN32 || defined WINCE || defined __CYGWIN__
+     #include <windows.h>
+     #undef small
+     #undef min
+@@ -725,7 +725,7 @@
+     }
+ }
+ 
+-#ifdef WIN32
++#if defined WIN32 || defined __CYGWIN__
+ 
+ 
+ #ifdef HAVE_WINRT
+diff -uNr opencv-2.4.12.2.orig/modules/core/src/system.cpp opencv-2.4.12.2/modules/core/src/system.cpp
+--- opencv-2.4.12.2.orig/modules/core/src/system.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/core/src/system.cpp	2015-09-22 10:33:51.352438900 +0900
+@@ -157,13 +157,13 @@
+ 
+ #include <stdarg.h>
+ 
+-#if defined __linux__ || defined __APPLE__ || defined __EMSCRIPTEN__ || defined __QNX__
++#if defined __linux__ || defined __APPLE__ || defined __EMSCRIPTEN__ || defined __QNX__ || defined __CYGWIN__
+ #include <unistd.h>
+ #include <stdio.h>
+ #include <sys/types.h>
+ #if defined ANDROID
+ #include <sys/sysconf.h>
+-#else
++#elif !defined __CYGWIN__ 
+ #include <sys/sysctl.h>
+ #endif
+ #endif
+@@ -338,7 +338,7 @@
+     LARGE_INTEGER counter;
+     QueryPerformanceCounter( &counter );
+     return (int64)counter.QuadPart;
+-#elif defined __linux || defined __linux__
++#elif defined __linux || defined __linux__ || defined __CYGWIN__
+     struct timespec tp;
+     clock_gettime(CLOCK_MONOTONIC, &tp);
+     return (int64)tp.tv_sec*1000000000 + tp.tv_nsec;
+@@ -358,7 +358,7 @@
+     LARGE_INTEGER freq;
+     QueryPerformanceFrequency(&freq);
+     return (double)freq.QuadPart;
+-#elif defined __linux || defined __linux__
++#elif defined __linux || defined __linux__ || defined __CYGWIN__
+     return 1e9;
+ #elif defined __MACH__ && defined __APPLE__
+     static double freq = 0;
+diff -uNr opencv-2.4.12.2.orig/modules/flann/include/opencv2/flann/defines.h opencv-2.4.12.2/modules/flann/include/opencv2/flann/defines.h
+--- opencv-2.4.12.2.orig/modules/flann/include/opencv2/flann/defines.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/flann/include/opencv2/flann/defines.h	2015-09-22 10:33:51.395466500 +0900
+@@ -35,7 +35,7 @@
+ #ifdef FLANN_EXPORT
+ #undef FLANN_EXPORT
+ #endif
+-#ifdef WIN32
++#if defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__
+ /* win32 dll export/import directives */
+  #ifdef FLANN_EXPORTS
+   #define FLANN_EXPORT __declspec(dllexport)
+diff -uNr opencv-2.4.12.2.orig/modules/flann/include/opencv2/flann/dummy.h opencv-2.4.12.2/modules/flann/include/opencv2/flann/dummy.h
+--- opencv-2.4.12.2.orig/modules/flann/include/opencv2/flann/dummy.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/flann/include/opencv2/flann/dummy.h	2015-09-22 10:33:51.408474900 +0900
+@@ -5,7 +5,7 @@
+ namespace cvflann
+ {
+ 
+-#if (defined WIN32 || defined _WIN32 || defined WINCE) && defined CVAPI_EXPORTS
++#if (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__) && defined CVAPI_EXPORTS
+ __declspec(dllexport)
+ #endif
+ void dummyfunc();
+diff -uNr opencv-2.4.12.2.orig/modules/gpu/src/nvidia/core/NCV.cu opencv-2.4.12.2/modules/gpu/src/nvidia/core/NCV.cu
+--- opencv-2.4.12.2.orig/modules/gpu/src/nvidia/core/NCV.cu	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/gpu/src/nvidia/core/NCV.cu	2015-09-22 10:33:51.418482400 +0900
+@@ -540,7 +540,7 @@
+ 
+ typedef struct _NcvTimeMoment NcvTimeMoment;
+ 
+-#if defined(_WIN32) || defined(_WIN64)
++#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+ 
+     #include <Windows.h>
+ 
+diff -uNr opencv-2.4.12.2.orig/modules/gpu/src/nvidia/core/NCV.hpp opencv-2.4.12.2/modules/gpu/src/nvidia/core/NCV.hpp
+--- opencv-2.4.12.2.orig/modules/gpu/src/nvidia/core/NCV.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/gpu/src/nvidia/core/NCV.hpp	2015-09-22 10:33:51.443498300 +0900
+@@ -43,7 +43,7 @@
+ #ifndef _ncv_hpp_
+ #define _ncv_hpp_
+ 
+-#if (defined WIN32 || defined _WIN32 || defined WINCE) && defined CVAPI_EXPORTS
++#if (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__) && defined CVAPI_EXPORTS
+     #define NCV_EXPORTS __declspec(dllexport)
+ #else
+     #define NCV_EXPORTS
+diff -uNr opencv-2.4.12.2.orig/modules/gpu/src/thread_wrappers.cpp opencv-2.4.12.2/modules/gpu/src/thread_wrappers.cpp
+--- opencv-2.4.12.2.orig/modules/gpu/src/thread_wrappers.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/gpu/src/thread_wrappers.cpp	2015-09-22 10:33:51.474518700 +0900
+@@ -52,7 +52,7 @@
+     #include <unistd.h>
+ #endif
+ 
+-#ifdef WIN32
++#if defined WIN32
+     class cv::gpu::detail::CriticalSection::Impl
+     {
+     public:
+@@ -131,7 +131,7 @@
+     impl_->leave();
+ }
+ 
+-#ifdef WIN32
++#if defined WIN32
+     namespace
+     {
+         struct UserData
+@@ -244,7 +244,7 @@
+ 
+ void cv::gpu::detail::Thread::sleep(int ms)
+ {
+-#ifdef WIN32
++#if defined WIN32
+     ::Sleep(ms);
+ #else
+     ::usleep(ms * 1000);
+diff -uNr opencv-2.4.12.2.orig/modules/highgui/CMakeLists.txt opencv-2.4.12.2/modules/highgui/CMakeLists.txt
+--- opencv-2.4.12.2.orig/modules/highgui/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/highgui/CMakeLists.txt	2015-09-22 10:33:51.488528900 +0900
+@@ -244,6 +244,32 @@
+   include_directories(AFTER SYSTEM "${OpenCV_SOURCE_DIR}/3rdparty/include") # for directshow in VS2005 and multi-monitor support on MinGW
+ endif()
+ 
++if(CYGWIN)
++  # -ftree-vectorize (included in -O3 option) causes seg.fault
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-tree-vectorize")
++  list(APPEND highgui_srcs src/window_w32.cpp)
++  if(HAVE_DSHOW)
++    list(APPEND highgui_srcs src/cap_dshow.cpp)
++  endif()
++  if(HAVE_VFW)
++    list(APPEND highgui_srcs src/cap_vfw.cpp)
++  endif()
++  if(HAVE_FFMPEG)
++    if(BZIP2_LIBRARIES)
++      list(APPEND HIGHGUI_LIBRARIES ${BZIP2_LIBRARIES})
++    endif()
++    if(NOT "${CYGWIN_FFMPEG_BUILT_DIR}" STREQUAL "")
++      ocv_include_directories(${CYGWIN_FFMPEG_BUILT_DIR})
++    endif()
++  endif()
++  foreach(P ${HIGHGUI_INCLUDE_DIRS})
++    ocv_include_directories(${P})
++  endforeach()
++  foreach(P ${HIGHGUI_LIBRARY_DIRS})
++    link_directories(${P})
++  endforeach()
++endif()
++
+ if(UNIX)
+   #these variables are set by CHECK_MODULE macro
+   foreach(P ${HIGHGUI_INCLUDE_DIRS})
+diff -uNr opencv-2.4.12.2.orig/modules/highgui/src/cap_dshow.cpp opencv-2.4.12.2/modules/highgui/src/cap_dshow.cpp
+--- opencv-2.4.12.2.orig/modules/highgui/src/cap_dshow.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/highgui/src/cap_dshow.cpp	2015-09-22 10:33:51.506540400 +0900
+@@ -41,7 +41,7 @@
+ 
+ #include "precomp.hpp"
+ 
+-#if (defined WIN32 || defined _WIN32) && defined HAVE_DSHOW
++#if (defined WIN32 || defined _WIN32 || defined __CYGWIN__) && defined HAVE_DSHOW
+ 
+ /*
+    DirectShow-based Video Capturing module is based on
+@@ -94,7 +94,6 @@
+ #pragma warning(disable: 4995)
+ #endif
+ 
+-#include <tchar.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <math.h>
+@@ -110,6 +109,12 @@
+ #  include "Aviriff.h"
+ #  include "dvdmedia.h"
+ #  include "bdaiface.h"
++#elif defined __CYGWIN__
++#define __STRSAFE__NO_INLINE
++#define STRSAFE_NO_DEPRECATE
++#include <dshow.h>
++#include <dvdmedia.h>
++#include <bdatypes.h>
+ #else
+ #  ifdef _MSC_VER
+ #  define __extension__
+@@ -159,7 +164,11 @@
+ #endif
+ 
+ //for threading
++#ifdef __CYGWIN__
++#include <pthread.h>
++#else
+ #include <process.h>
++#endif
+ 
+ //this is for TryEnterCriticalSection
+ #ifndef _WIN32_WINNT
+@@ -431,7 +440,7 @@
+         IMediaEventEx * pMediaEvent;
+ 
+         GUID videoType;
+-        long formatType;
++        LONG formatType;
+ 
+         SampleGrabberCallback * sgCallback;
+ 
+@@ -447,7 +456,7 @@
+         int  connection;
+         int  storeConn;
+         int  myID;
+-        long requestedFrameTime; //ie fps
++        LONG requestedFrameTime; //ie fps
+ 
+         char  nDeviceName[255];
+         WCHAR wDeviceName[255];
+@@ -527,13 +536,13 @@
+ 
+         //Manual control over settings thanks.....
+         //These are experimental for now.
+-        bool setVideoSettingFilter(int deviceID, long Property, long lValue, long Flags = 0, bool useDefaultValue = false);
+-        bool setVideoSettingFilterPct(int deviceID, long Property, float pctValue, long Flags = 0);
+-        bool getVideoSettingFilter(int deviceID, long Property, long &min, long &max, long &SteppingDelta, long &currentValue, long &flags, long &defaultValue);
+-
+-        bool setVideoSettingCamera(int deviceID, long Property, long lValue, long Flags = 0, bool useDefaultValue = false);
+-        bool setVideoSettingCameraPct(int deviceID, long Property, float pctValue, long Flags = 0);
+-        bool getVideoSettingCamera(int deviceID, long Property, long &min, long &max, long &SteppingDelta, long &currentValue, long &flags, long &defaultValue);
++        bool setVideoSettingFilter(int deviceID, LONG Property, LONG lValue, LONG Flags = 0, bool useDefaultValue = false);
++        bool setVideoSettingFilterPct(int deviceID, LONG Property, float pctValue, LONG Flags = 0);
++        bool getVideoSettingFilter(int deviceID, LONG Property, LONG &min, LONG &max, LONG &SteppingDelta, LONG &currentValue, LONG &flags, LONG &defaultValue);
++
++        bool setVideoSettingCamera(int deviceID, LONG Property, LONG lValue, LONG Flags = 0, bool useDefaultValue = false);
++        bool setVideoSettingCameraPct(int deviceID, LONG Property, float pctValue, LONG Flags = 0);
++        bool getVideoSettingCamera(int deviceID, LONG Property, LONG &min, LONG &max, LONG &SteppingDelta, LONG &currentValue, LONG &flags, LONG &defaultValue);
+ 
+         //bool setVideoSettingCam(int deviceID, long Property, long lValue, long Flags = NULL, bool useDefaultValue = false);
+ 
+@@ -595,7 +604,7 @@
+ 
+         videoDevice * VDList[VI_MAX_CAMERAS];
+         GUID mediaSubtypes[VI_NUM_TYPES];
+-        long formatTypes[VI_NUM_FORMATS];
++        LONG formatTypes[VI_NUM_FORMATS];
+ 
+         static void __cdecl basicThread(void * objPtr);
+ 
+@@ -713,7 +722,7 @@
+ 
+ 
+     //This method is meant to have more overhead
+-    STDMETHODIMP BufferCB(double, BYTE *, long){
++    STDMETHODIMP BufferCB(double, BYTE *, LONG){
+         return E_NOTIMPL;
+     }
+ 
+@@ -1265,7 +1274,7 @@
+             if(FAILED(hr)){
+                 printf("SETUP: couldn't set requested format\n");
+             }else{
+-                long lValue = 0;
++                LONG lValue = 0;
+                 hr = pVideoDec->get_AvailableTVFormats(&lValue);
+                 if( SUCCEEDED(hr) && (lValue & VDList[deviceNumber]->formatType) )
+                    {
+@@ -1509,8 +1518,8 @@
+         }
+         else{
+             //regular capture method
+-            long bufferSize = VDList[id]->videoSize;
+-            HRESULT hr = VDList[id]->pGrabber->GetCurrentBuffer(&bufferSize, (long *)VDList[id]->pBuffer);
++            LONG bufferSize = VDList[id]->videoSize;
++            HRESULT hr = VDList[id]->pGrabber->GetCurrentBuffer(&bufferSize, (LONG *)VDList[id]->pBuffer);
+             if(hr==S_OK){
+                 int numBytes = VDList[id]->videoSize;
+                 if (numBytes == bufferSize){
+@@ -1636,14 +1645,19 @@
+         HRESULT hr = getDevice(&VDList[id]->pVideoInputFilter, id, VDList[id]->wDeviceName, VDList[id]->nDeviceName);
+         if(hr == S_OK){
+             //myTempThread = (HANDLE)
++#if ! defined __CYGWIN__
+                 _beginthread(basicThread, 0, (void *)&VDList[id]);
++#else
++			pthread_t myTempThread;
++			pthread_create(&myTempThread, NULL, (void* (*)(void*))basicThread, (void *)&VDList[id]);
++#endif
+         }
+     }
+ }
+ 
+ 
+ // Set a video signal setting using IAMVideoProcAmp
+-bool videoInput::getVideoSettingFilter(int deviceID, long Property, long &min, long &max, long &SteppingDelta, long &currentValue, long &flags, long &defaultValue){
++bool videoInput::getVideoSettingFilter(int deviceID, LONG Property, LONG &min, LONG &max, LONG &SteppingDelta, LONG &currentValue, LONG &flags, LONG &defaultValue){
+     if( !isDeviceSetup(deviceID) )return false;
+ 
+     HRESULT hr;
+@@ -1673,7 +1687,11 @@
+     if (verbose) printf("Setting video setting %s.\n", propStr);
+ 
+     pAMVideoProcAmp->GetRange(Property, &min, &max, &SteppingDelta, &defaultValue, &flags);
++#ifdef __LP64__
++    if (verbose) printf("Range for video setting %s: Min:%u Max:%u SteppingDelta:%u Default:%u Flags:%u\n", propStr, min, max, SteppingDelta, defaultValue, flags);
++#else
+     if (verbose) printf("Range for video setting %s: Min:%ld Max:%ld SteppingDelta:%ld Default:%ld Flags:%ld\n", propStr, min, max, SteppingDelta, defaultValue, flags);
++#endif
+     pAMVideoProcAmp->Get(Property, &currentValue, &flags);
+ 
+     if(pAMVideoProcAmp)pAMVideoProcAmp->Release();
+@@ -1686,10 +1704,10 @@
+ 
+ 
+ // Set a video signal setting using IAMVideoProcAmp
+-bool videoInput::setVideoSettingFilterPct(int deviceID, long Property, float pctValue, long Flags){
++bool videoInput::setVideoSettingFilterPct(int deviceID, LONG Property, float pctValue, LONG Flags){
+     if( !isDeviceSetup(deviceID) )return false;
+ 
+-    long min, max, currentValue, flags, defaultValue, stepAmnt;
++    LONG min, max, currentValue, flags, defaultValue, stepAmnt;
+ 
+     if( !getVideoSettingFilter(deviceID, Property, min, max, stepAmnt, currentValue, flags, defaultValue) )return false;
+ 
+@@ -1700,8 +1718,8 @@
+     if(range <= 0)return false;
+     if(stepAmnt == 0) return false;
+ 
+-    long value     = (long)( (float)min + range * pctValue );
+-    long rasterValue = value;
++    LONG value     = (LONG)( (float)min + range * pctValue );
++    LONG rasterValue = value;
+ 
+     //if the range is the stepAmnt then it is just a switch
+     //so we either set the value to low or high
+@@ -1710,11 +1728,15 @@
+         else rasterValue = max;
+     }else{
+         //we need to rasterize the value to the stepping amnt
+-        long mod         = value % stepAmnt;
++        LONG mod         = value % stepAmnt;
+         float halfStep     = (float)stepAmnt * 0.5f;
+         if( mod < halfStep ) rasterValue -= mod;
+         else rasterValue += stepAmnt - mod;
++#ifdef __LP64__
++        printf("RASTER - pctValue is %f - value is %u - step is %u - mod is %u - rasterValue is %u\n", pctValue, value, stepAmnt, mod, rasterValue);
++#else
+         printf("RASTER - pctValue is %f - value is %li - step is %li - mod is %li - rasterValue is %li\n", pctValue, value, stepAmnt, mod, rasterValue);
++#endif
+     }
+ 
+     return setVideoSettingFilter(deviceID, Property, rasterValue, Flags, false);
+@@ -1722,7 +1744,7 @@
+ 
+ 
+ // Set a video signal setting using IAMVideoProcAmp
+-bool videoInput::setVideoSettingFilter(int deviceID, long Property, long lValue, long Flags, bool useDefaultValue){
++bool videoInput::setVideoSettingFilter(int deviceID, LONG Property, LONG lValue, LONG Flags, bool useDefaultValue){
+     if( !isDeviceSetup(deviceID) )return false;
+ 
+     HRESULT hr;
+@@ -1750,14 +1772,22 @@
+     }
+ 
+     if (verbose) printf("Setting video setting %s.\n", propStr);
+-    long CurrVal, Min, Max, SteppingDelta, Default, CapsFlags, AvailableCapsFlags = 0;
++    LONG CurrVal, Min, Max, SteppingDelta, Default, CapsFlags, AvailableCapsFlags = 0;
+ 
+ 
+     pAMVideoProcAmp->GetRange(Property, &Min, &Max, &SteppingDelta, &Default, &AvailableCapsFlags);
++#ifdef __LP64__
++    if (verbose) printf("Range for video setting %s: Min:%u Max:%u SteppingDelta:%u Default:%u Flags:%u\n", propStr, Min, Max, SteppingDelta, Default, AvailableCapsFlags);
++#else
+     if (verbose) printf("Range for video setting %s: Min:%ld Max:%ld SteppingDelta:%ld Default:%ld Flags:%ld\n", propStr, Min, Max, SteppingDelta, Default, AvailableCapsFlags);
++#endif
+     pAMVideoProcAmp->Get(Property, &CurrVal, &CapsFlags);
+ 
++#ifdef __LP64__
++    if (verbose) printf("Current value: %u Flags %u (%s)\n", CurrVal, CapsFlags, (CapsFlags == 1 ? "Auto" : (CapsFlags == 2 ? "Manual" : "Unknown")));
++#else
+     if (verbose) printf("Current value: %ld Flags %ld (%s)\n", CurrVal, CapsFlags, (CapsFlags == 1 ? "Auto" : (CapsFlags == 2 ? "Manual" : "Unknown")));
++#endif
+ 
+     if (useDefaultValue) {
+         pAMVideoProcAmp->Set(Property, Default, VideoProcAmp_Flags_Auto);
+@@ -1776,10 +1806,10 @@
+ }
+ 
+ 
+-bool videoInput::setVideoSettingCameraPct(int deviceID, long Property, float pctValue, long Flags){
++bool videoInput::setVideoSettingCameraPct(int deviceID, LONG Property, float pctValue, LONG Flags){
+     if( !isDeviceSetup(deviceID) )return false;
+ 
+-    long min, max, currentValue, flags, defaultValue, stepAmnt;
++    LONG min, max, currentValue, flags, defaultValue, stepAmnt;
+ 
+     if( !getVideoSettingCamera(deviceID, Property, min, max, stepAmnt, currentValue, flags, defaultValue) )return false;
+ 
+@@ -1790,8 +1820,8 @@
+     if(range <= 0)return false;
+     if(stepAmnt == 0) return false;
+ 
+-    long value     = (long)( (float)min + range * pctValue );
+-    long rasterValue = value;
++    LONG value     = (LONG)( (float)min + range * pctValue );
++    LONG rasterValue = value;
+ 
+     //if the range is the stepAmnt then it is just a switch
+     //so we either set the value to low or high
+@@ -1800,18 +1830,22 @@
+         else rasterValue = max;
+     }else{
+         //we need to rasterize the value to the stepping amnt
+-        long mod         = value % stepAmnt;
++        LONG mod         = value % stepAmnt;
+         float halfStep     = (float)stepAmnt * 0.5f;
+         if( mod < halfStep ) rasterValue -= mod;
+         else rasterValue += stepAmnt - mod;
++#ifdef __LP64__
++        printf("RASTER - pctValue is %f - value is %u - step is %u - mod is %u - rasterValue is %u\n", pctValue, value, stepAmnt, mod, rasterValue);
++#else
+         printf("RASTER - pctValue is %f - value is %li - step is %li - mod is %li - rasterValue is %li\n", pctValue, value, stepAmnt, mod, rasterValue);
++#endif
+     }
+ 
+     return setVideoSettingCamera(deviceID, Property, rasterValue, Flags, false);
+ }
+ 
+ 
+-bool videoInput::setVideoSettingCamera(int deviceID, long Property, long lValue, long Flags, bool useDefaultValue){
++bool videoInput::setVideoSettingCamera(int deviceID, LONG Property, LONG lValue, LONG Flags, bool useDefaultValue){
+     IAMCameraControl *pIAMCameraControl;
+     if(isDeviceSetup(deviceID))
+     {
+@@ -1831,11 +1865,19 @@
+         }
+         else
+         {
+-            long CurrVal, Min, Max, SteppingDelta, Default, CapsFlags, AvailableCapsFlags;
++            LONG CurrVal, Min, Max, SteppingDelta, Default, CapsFlags, AvailableCapsFlags;
+             pIAMCameraControl->GetRange(Property, &Min, &Max, &SteppingDelta, &Default, &AvailableCapsFlags);
++#ifdef __LP64__
++            if (verbose) printf("Range for video setting %s: Min:%u Max:%u SteppingDelta:%u Default:%u Flags:%u\n", propStr, Min, Max, SteppingDelta, Default, AvailableCapsFlags);
++#else
+             if (verbose) printf("Range for video setting %s: Min:%ld Max:%ld SteppingDelta:%ld Default:%ld Flags:%ld\n", propStr, Min, Max, SteppingDelta, Default, AvailableCapsFlags);
++#endif
+             pIAMCameraControl->Get(Property, &CurrVal, &CapsFlags);
++#ifdef __LP64__
++            if (verbose) printf("Current value: %u Flags %u (%s)\n", CurrVal, CapsFlags, (CapsFlags == 1 ? "Auto" : (CapsFlags == 2 ? "Manual" : "Unknown")));
++#else
+             if (verbose) printf("Current value: %ld Flags %ld (%s)\n", CurrVal, CapsFlags, (CapsFlags == 1 ? "Auto" : (CapsFlags == 2 ? "Manual" : "Unknown")));
++#endif
+             if (useDefaultValue) {
+                 pIAMCameraControl->Set(Property, Default, CameraControl_Flags_Auto);
+             }
+@@ -1855,7 +1897,7 @@
+ 
+ 
+ 
+-bool videoInput::getVideoSettingCamera(int deviceID, long Property, long &min, long &max, long &SteppingDelta, long &currentValue, long &flags, long &defaultValue){
++bool videoInput::getVideoSettingCamera(int deviceID, LONG Property, LONG &min, LONG &max, LONG &SteppingDelta, LONG &currentValue, LONG &flags, LONG &defaultValue){
+     if( !isDeviceSetup(deviceID) )return false;
+ 
+     HRESULT hr;
+@@ -1884,7 +1926,11 @@
+     if (verbose) printf("Setting video setting %s.\n", propStr);
+ 
+     pIAMCameraControl->GetRange(Property, &min, &max, &SteppingDelta, &defaultValue, &flags);
++#ifdef __LP64__
++    if (verbose) printf("Range for video setting %s: Min:%u Max:%u SteppingDelta:%u Default:%u Flags:%u\n", propStr, min, max, SteppingDelta, defaultValue, flags);
++#else
+     if (verbose) printf("Range for video setting %s: Min:%ld Max:%ld SteppingDelta:%ld Default:%ld Flags:%ld\n", propStr, min, max, SteppingDelta, defaultValue, flags);
++#endif
+     pIAMCameraControl->Get(Property, &currentValue, &flags);
+ 
+     if(pIAMCameraControl)pIAMCameraControl->Release();
+@@ -1923,7 +1969,7 @@
+         int tmpH           = VDList[id]->height;
+ 
+         bool bFormat    = VDList[id]->specificFormat;
+-        long format     = VDList[id]->formatType;
++        LONG format     = VDList[id]->formatType;
+ 
+         int nReconnect    = VDList[id]->nFramesForReconnect;
+         bool bReconnect = VDList[id]->autoReconnect;
+@@ -2751,10 +2797,10 @@
+     //MAKE SURE THE DEVICE IS SENDING VIDEO BEFORE WE FINISH
+     if(!bCallback){
+ 
+-        long bufferSize = VD->videoSize;
++        LONG bufferSize = VD->videoSize;
+ 
+         while( hr != S_OK){
+-            hr = VD->pGrabber->GetCurrentBuffer(&bufferSize, (long *)VD->pBuffer);
++            hr = VD->pGrabber->GetCurrentBuffer(&bufferSize, (LONG *)VD->pBuffer);
+             Sleep(10);
+         }
+ 
+@@ -3218,7 +3264,7 @@
+ double CvCaptureCAM_DShow::getProperty( int property_id )
+ {
+ 
+-    long min_value,max_value,stepping_delta,current_value,flags,defaultValue;
++    LONG min_value,max_value,stepping_delta,current_value,flags,defaultValue;
+ 
+     // image format proprrties
+     switch( property_id )
+@@ -3353,7 +3399,7 @@
+     case CV_CAP_PROP_WHITE_BALANCE_U:
+     case CV_CAP_PROP_BACKLIGHT:
+     case CV_CAP_PROP_GAIN:
+-        return VI.setVideoSettingFilter(index,VI.getVideoPropertyFromCV(property_id),(long)value);
++        return VI.setVideoSettingFilter(index,VI.getVideoPropertyFromCV(property_id),(LONG)value);
+     }
+ 
+     //camera properties
+@@ -3366,7 +3412,7 @@
+     case CV_CAP_PROP_EXPOSURE:
+     case CV_CAP_PROP_IRIS:
+     case CV_CAP_PROP_FOCUS:
+-        return VI.setVideoSettingCamera(index,VI.getCameraPropertyFromCV(property_id),(long)value);
++        return VI.setVideoSettingCamera(index,VI.getCameraPropertyFromCV(property_id),(LONG)value);
+     }
+ 
+     return false;
+diff -uNr opencv-2.4.12.2.orig/modules/highgui/src/cap_ffmpeg_impl.hpp opencv-2.4.12.2/modules/highgui/src/cap_ffmpeg_impl.hpp
+--- opencv-2.4.12.2.orig/modules/highgui/src/cap_ffmpeg_impl.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/highgui/src/cap_ffmpeg_impl.hpp	2015-09-22 10:33:51.572583800 +0900
+@@ -62,7 +62,9 @@
+ #include <libavutil/mathematics.h>
+ 
+ #ifdef WIN32
++  #ifndef HAVE_FFMPEG_SWSCALE
+   #define HAVE_FFMPEG_SWSCALE 1
++  #endif
+   #include <libavcodec/avcodec.h>
+   #include <libswscale/swscale.h>
+ #else
+diff -uNr opencv-2.4.12.2.orig/modules/highgui/src/cap_vfw.cpp opencv-2.4.12.2/modules/highgui/src/cap_vfw.cpp
+--- opencv-2.4.12.2.orig/modules/highgui/src/cap_vfw.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/highgui/src/cap_vfw.cpp	2015-09-22 10:33:51.619615300 +0900
+@@ -41,6 +41,11 @@
+ 
+ #include "precomp.hpp"
+ 
++#ifdef __CYGWIN__
++#include <sys/cygwin.h>
++#include <windows.h>
++#endif
++
+ #include <vfw.h>
+ 
+ #ifdef __GNUC__
+@@ -156,13 +161,22 @@
+ 
+ bool CvCaptureAVI_VFW::open( const char* filename )
+ {
++#ifdef __CYGWIN__
++    char w32filename[MAX_PATH];
++#endif
++
+     close();
+     icvInitCapture_VFW();
+ 
+     if( !filename )
+         return false;
+ 
++#ifdef __CYGWIN__
++    cygwin_conv_path(CCP_POSIX_TO_WIN_W | CCP_RELATIVE, filename, w32filename, MAX_PATH);
++    HRESULT hr = AVIFileOpen( &avifile, w32filename, OF_READ, NULL );
++#else
+     HRESULT hr = AVIFileOpen( &avifile, filename, OF_READ, NULL );
++#endif
+     if( SUCCEEDED(hr))
+     {
+         hr = AVIFileGetStream( avifile, &avistream, streamtypeVIDEO, 0 );
+@@ -719,10 +733,19 @@
+ 
+ bool CvVideoWriter_VFW::open( const char* filename, int _fourcc, double _fps, CvSize frameSize, bool isColor )
+ {
++#ifdef __CYGWIN__
++    char w32filename[MAX_PATH];
++#endif
++
+     close();
+ 
+     icvInitCapture_VFW();
++#ifdef __CYGWIN__
++    cygwin_conv_path(CCP_POSIX_TO_WIN_A | CCP_RELATIVE, filename, w32filename, MAX_PATH);
++    if( AVIFileOpen( &avifile, w32filename, OF_CREATE | OF_WRITE, 0 ) == AVIERR_OK )
++#else
+     if( AVIFileOpen( &avifile, filename, OF_CREATE | OF_WRITE, 0 ) == AVIERR_OK )
++#endif
+     {
+         fourcc = _fourcc;
+         fps = _fps;
+diff -uNr opencv-2.4.12.2.orig/modules/highgui/src/window_w32.cpp opencv-2.4.12.2/modules/highgui/src/window_w32.cpp
+--- opencv-2.4.12.2.orig/modules/highgui/src/window_w32.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/highgui/src/window_w32.cpp	2015-09-22 10:33:51.649634800 +0900
+@@ -39,9 +39,13 @@
+ //
+ //M*/
+ 
++#if defined __CYGWIN__
++#include <windows.h>
++#endif
++
+ #include "precomp.hpp"
+ 
+-#if defined WIN32 || defined _WIN32
++#if defined WIN32 || defined _WIN32 || defined __CYGWIN__
+ 
+ #ifdef __GNUC__
+ #  pragma GCC diagnostic ignored "-Wmissing-declarations"
+@@ -60,8 +64,12 @@
+ #include <vector>
+ #include <functional>
+ #include "opencv2/highgui/highgui.hpp"
++#ifdef __CYGWIN__
++#include <w32api/GL/gl.h>
++#else
+ #include <GL\gl.h>
+ #endif
++#endif
+ 
+ static const char* trackbar_text =
+ "                                                                                             ";
+diff -uNr opencv-2.4.12.2.orig/modules/legacy/src/calibfilter.cpp opencv-2.4.12.2/modules/legacy/src/calibfilter.cpp
+--- opencv-2.4.12.2.orig/modules/legacy/src/calibfilter.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/legacy/src/calibfilter.cpp	2015-09-22 10:33:51.700668900 +0900
+@@ -42,7 +42,9 @@
+ #include "precomp.hpp"
+ #include <stdio.h>
+ 
++#ifndef __CYGWIN__
+ #undef quad
++#endif
+ 
+ CvCalibFilter::CvCalibFilter()
+ {
+diff -uNr opencv-2.4.12.2.orig/modules/legacy/src/epilines.cpp opencv-2.4.12.2/modules/legacy/src/epilines.cpp
+--- opencv-2.4.12.2.orig/modules/legacy/src/epilines.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/legacy/src/epilines.cpp	2015-09-22 10:33:51.730689200 +0900
+@@ -46,7 +46,9 @@
+ 
+ /* Valery Mosyagin */
+ 
++#ifndef __CYGWIN__
+ #undef quad
++#endif
+ 
+ #define EPS64D 1e-9
+ 
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/include/opencv2/ocl/cl_runtime/cl_runtime_opencl.hpp opencv-2.4.12.2/modules/ocl/include/opencv2/ocl/cl_runtime/cl_runtime_opencl.hpp
+--- opencv-2.4.12.2.orig/modules/ocl/include/opencv2/ocl/cl_runtime/cl_runtime_opencl.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/include/opencv2/ocl/cl_runtime/cl_runtime_opencl.hpp	2015-09-22 10:33:51.824751600 +0900
+@@ -279,7 +279,7 @@
+ #define clGetExtensionFunctionAddress clGetExtensionFunctionAddress_pfn
+ 
+ #ifndef CL_RUNTIME_EXPORT
+-#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllimport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/include/opencv2/ocl/cl_runtime/clamdblas_runtime.hpp opencv-2.4.12.2/modules/ocl/include/opencv2/ocl/cl_runtime/clamdblas_runtime.hpp
+--- opencv-2.4.12.2.orig/modules/ocl/include/opencv2/ocl/cl_runtime/clamdblas_runtime.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/include/opencv2/ocl/cl_runtime/clamdblas_runtime.hpp	2015-09-22 10:33:51.837760500 +0900
+@@ -538,7 +538,7 @@
+ #define clAmdBlasZher2k clAmdBlasZher2k_pfn
+ 
+ #ifndef CL_RUNTIME_EXPORT
+-#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllimport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/include/opencv2/ocl/cl_runtime/clamdfft_runtime.hpp opencv-2.4.12.2/modules/ocl/include/opencv2/ocl/cl_runtime/clamdfft_runtime.hpp
+--- opencv-2.4.12.2.orig/modules/ocl/include/opencv2/ocl/cl_runtime/clamdfft_runtime.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/include/opencv2/ocl/cl_runtime/clamdfft_runtime.hpp	2015-09-22 10:33:51.846766200 +0900
+@@ -109,7 +109,7 @@
+ #define clAmdFftEnqueueTransform clAmdFftEnqueueTransform_pfn
+ 
+ #ifndef CL_RUNTIME_EXPORT
+-#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllimport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_context.cpp opencv-2.4.12.2/modules/ocl/src/cl_context.cpp
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_context.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_context.cpp	2015-09-22 10:33:51.857773800 +0900
+@@ -59,7 +59,7 @@
+ 
+ using namespace cl_utils;
+ 
+-#if defined(WIN32)
++#if defined WIN32 || defined __CYGWIN__
+ static bool __termination = false;
+ #endif
+ 
+@@ -541,7 +541,7 @@
+     void create(ContextImpl* context_);
+     void release()
+     {
+-#ifdef WIN32
++#if defined WIN32 || defined __CYGWIN__
+         // if process is on termination stage (ExitProcess was called and other threads were terminated)
+         // then disable command queue release because it may cause program hang
+         if (!__termination)
+@@ -623,7 +623,7 @@
+         }
+         clDeviceID = NULL;
+ 
+-#ifdef WIN32
++#if defined WIN32 || defined __CYGWIN__
+         // if process is on termination stage (ExitProcess was called and other threads were terminated)
+         // then disable context release because it may cause program hang
+         if (!__termination)
+@@ -921,7 +921,7 @@
+ 
+ __Module::~__Module()
+ {
+-#if defined(WIN32) && defined(CVAPI_EXPORTS)
++#if (defined WIN32 || defined __CYGWIN__) && defined(CVAPI_EXPORTS)
+     // nothing, see DllMain
+ #else
+     ContextImpl::cleanupContext();
+@@ -932,7 +932,7 @@
+ } // namespace cv
+ 
+ 
+-#if defined(WIN32) && defined(CVAPI_EXPORTS)
++#if (defined WIN32 || defined __CYGWIN__) && defined(CVAPI_EXPORTS)
+ 
+ extern "C"
+ BOOL WINAPI DllMain(HINSTANCE /*hInst*/, DWORD fdwReason, LPVOID lpReserved);
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/cl_runtime.cpp opencv-2.4.12.2/modules/ocl/src/cl_runtime/cl_runtime.cpp
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/cl_runtime.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/cl_runtime.cpp	2015-09-22 10:33:51.927819800 +0900
+@@ -22,7 +22,7 @@
+     #define CV_CL_GET_PROC_ADDRESS(name) AppleCLGetProcAddress(name)
+ #endif // __APPLE__
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) || defined(__CYGWIN__)
+     static void* WinGetProcAddress(const char* name)
+     {
+         static HMODULE opencl_module = NULL;
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/clamdblas_runtime.cpp opencv-2.4.12.2/modules/ocl/src/cl_runtime/clamdblas_runtime.cpp
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/clamdblas_runtime.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/clamdblas_runtime.cpp	2015-09-22 10:33:51.937827300 +0900
+@@ -8,7 +8,7 @@
+ #include "opencv2/ocl/cl_runtime/cl_runtime.hpp"
+ #include "opencv2/ocl/cl_runtime/clamdblas_runtime.hpp"
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) || defined(__CYGWIN__)
+     static void* WinGetProcAddress(const char* name)
+     {
+         static HMODULE opencl_module = NULL;
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/clamdfft_runtime.cpp opencv-2.4.12.2/modules/ocl/src/cl_runtime/clamdfft_runtime.cpp
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/clamdfft_runtime.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/clamdfft_runtime.cpp	2015-09-22 10:33:51.955838800 +0900
+@@ -8,7 +8,7 @@
+ #include "opencv2/ocl/cl_runtime/cl_runtime.hpp"
+ #include "opencv2/ocl/cl_runtime/clamdfft_runtime.hpp"
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) || defined(__CYGWIN__)
+     static void* WinGetProcAddress(const char* name)
+     {
+         static HMODULE opencl_module = NULL;
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/cl_runtime_opencl.hpp.in opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/cl_runtime_opencl.hpp.in
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/cl_runtime_opencl.hpp.in	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/cl_runtime_opencl.hpp.in	2015-09-22 10:33:51.966845900 +0900
+@@ -12,7 +12,7 @@
+ @CL_REMAP_DYNAMIC@
+ 
+ #ifndef CL_RUNTIME_EXPORT
+-#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllimport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.cpp.in opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.cpp.in
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.cpp.in	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.cpp.in	2015-09-22 10:33:51.975851700 +0900
+@@ -5,7 +5,10 @@
+ #include "opencv2/ocl/cl_runtime/cl_runtime.hpp"
+ #include "opencv2/ocl/cl_runtime/clamdblas_runtime.hpp"
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) || defined(__CYGWIN__)
++#ifdef __CYGWIN__
++    #include <windows.h>
++#endif // __CYGWIN__
+     static void* WinGetProcAddress(const char* name)
+     {
+         static HMODULE opencl_module = NULL;
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.hpp.in opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.hpp.in
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.hpp.in	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdblas_runtime.hpp.in	2015-09-22 10:33:51.985858800 +0900
+@@ -10,7 +10,7 @@
+ @CLAMDBLAS_REMAP_DYNAMIC@
+ 
+ #ifndef CL_RUNTIME_EXPORT
+-#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllimport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.cpp.in opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.cpp.in
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.cpp.in	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.cpp.in	2015-09-22 10:33:51.994865000 +0900
+@@ -5,7 +5,10 @@
+ #include "opencv2/ocl/cl_runtime/cl_runtime.hpp"
+ #include "opencv2/ocl/cl_runtime/clamdfft_runtime.hpp"
+ 
+-#if defined(_WIN32)
++#if defined(_WIN32) || defined(__CYGWIN__)
++#ifdef __CYGWIN__
++    #include <windows.h>
++#endif // __CYGWIN__
+     static void* WinGetProcAddress(const char* name)
+     {
+         static HMODULE opencl_module = NULL;
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.hpp.in opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.hpp.in
+--- opencv-2.4.12.2.orig/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.hpp.in	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/cl_runtime/generator/template/clamdfft_runtime.hpp.in	2015-09-22 10:33:52.004871200 +0900
+@@ -10,7 +10,7 @@
+ @CLAMDFFT_REMAP_DYNAMIC@
+ 
+ #ifndef CL_RUNTIME_EXPORT
+-#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if (defined(BUILD_SHARED_LIBS) || defined(OPENCV_OCL_SHARED)) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllimport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/ocl/src/precomp.hpp opencv-2.4.12.2/modules/ocl/src/precomp.hpp
+--- opencv-2.4.12.2.orig/modules/ocl/src/precomp.hpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ocl/src/precomp.hpp	2015-09-22 10:33:52.011875600 +0900
+@@ -52,13 +52,13 @@
+ #pragma warning( disable: 4127 4267 4324 4244 4251 4710 4711 4514 4996 )
+ #endif
+ 
+-#if defined(_WIN32)
++#if defined _WIN32 || defined __CYGWIN__
+ #include <windows.h>
+ #endif
+ 
+ #include "cvconfig.h"
+ 
+-#if defined(BUILD_SHARED_LIBS) && (defined WIN32 || defined _WIN32 || defined WINCE)
++#if defined(BUILD_SHARED_LIBS) && (defined WIN32 || defined _WIN32 || defined WINCE || defined __CYGWIN__)
+ #define CL_RUNTIME_EXPORT __declspec(dllexport)
+ #else
+ #define CL_RUNTIME_EXPORT
+diff -uNr opencv-2.4.12.2.orig/modules/python/src2/cv2.cpp opencv-2.4.12.2/modules/python/src2/cv2.cpp
+--- opencv-2.4.12.2.orig/modules/python/src2/cv2.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/python/src2/cv2.cpp	2015-09-22 10:33:52.025884900 +0900
+@@ -1156,7 +1156,7 @@
+ #include "cv2.cv.hpp"
+ 
+ extern "C"
+-#if defined WIN32 || defined _WIN32
++#if defined WIN32 || defined _WIN32 || defined __CYGWIN__
+ __declspec(dllexport)
+ #endif
+ void initcv2();
+diff -uNr opencv-2.4.12.2.orig/modules/ts/include/opencv2/ts/ts_gtest.h opencv-2.4.12.2/modules/ts/include/opencv2/ts/ts_gtest.h
+--- opencv-2.4.12.2.orig/modules/ts/include/opencv2/ts/ts_gtest.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ts/include/opencv2/ts/ts_gtest.h	2015-09-22 10:33:52.044897800 +0900
+@@ -1912,11 +1912,11 @@
+ 
+ #endif  // GTEST_HAS_SEH
+ 
+-#ifdef _MSC_VER
++#if defined _MSC_VER || defined __MINGW__ || defined __CYGWIN__
+ 
+-# if GTEST_LINKED_AS_SHARED_LIBRARY
++# if defined GTEST_LINKED_AS_SHARED_LIBRARY && GTEST_LINKED_AS_SHARED_LIBRARY != 0
+ #  define GTEST_API_ __declspec(dllimport)
+-# elif GTEST_CREATE_SHARED_LIBRARY
++# elif defined GTEST_CREATE_SHARED_LIBRARY && GTEST_CREATE_SHARED_LIBRARY != 0
+ #  define GTEST_API_ __declspec(dllexport)
+ # endif
+ 
+diff -uNr opencv-2.4.12.2.orig/modules/ts/src/gpu_perf.cpp opencv-2.4.12.2/modules/ts/src/gpu_perf.cpp
+--- opencv-2.4.12.2.orig/modules/ts/src/gpu_perf.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/ts/src/gpu_perf.cpp	2015-09-22 10:33:52.196998700 +0900
+@@ -255,6 +255,12 @@
+     #   else
+             printf("[----------]\n[ GPU INFO ] \tRun on OS Linux x32.\n[----------]\n"), fflush(stdout);
+     #   endif
++    #elif defined __CYGWIN__
++    #   if defined _LP64
++            printf("[----------]\n[ GPU INFO ] \tRun on OS Cygwin x64.\n[----------]\n"), fflush(stdout);
++    #   else
++            printf("[----------]\n[ GPU INFO ] \tRun on OS Cygwin x32.\n[----------]\n"), fflush(stdout);
++    #   endif
+     #endif
+ 
+     }
+diff -uNr opencv-2.4.12.2.orig/modules/viz/CMakeLists.txt opencv-2.4.12.2/modules/viz/CMakeLists.txt
+--- opencv-2.4.12.2.orig/modules/viz/CMakeLists.txt	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/viz/CMakeLists.txt	2015-09-22 10:33:52.213008900 +0900
+@@ -10,6 +10,11 @@
+   target_link_libraries(opencv_viz "-framework Cocoa")
+ endif()
+ 
++if(CYGWIN AND BUILD_opencv_viz)
++  target_link_libraries(opencv_viz gdi32)
++endif()
++
++
+ if(TARGET opencv_test_viz)
+   set_target_properties(opencv_test_viz PROPERTIES MACOSX_BUNDLE TRUE)
+ endif()
+diff -uNr opencv-2.4.12.2.orig/modules/viz/src/vizimpl.cpp opencv-2.4.12.2/modules/viz/src/vizimpl.cpp
+--- opencv-2.4.12.2.orig/modules/viz/src/vizimpl.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/modules/viz/src/vizimpl.cpp	2015-09-22 10:33:52.220013800 +0900
+@@ -83,6 +83,17 @@
+     }
+ }
+ 
++#ifdef __CYGWIN__
++void cv::viz::Viz3d::VizImpl::ExitCallback::Execute(vtkObject* caller, unsigned long event_id, void*)
++{
++    if (event_id == vtkCommand::ExitEvent)
++    {
++        vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
++        interactor->TerminateApp();
++        viz->interactor_ = 0;
++    }
++}
++#else
+ void cv::viz::Viz3d::VizImpl::ExitCallback::Execute(vtkObject*, unsigned long event_id, void*)
+ {
+     if (event_id == vtkCommand::ExitEvent)
+@@ -91,6 +102,7 @@
+         viz->interactor_ = 0;
+     }
+ }
++#endif
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////
+ 
+diff -uNr opencv-2.4.12.2.orig/platforms/android/service/engine/jni/Tests/gtest/gtest.h opencv-2.4.12.2/platforms/android/service/engine/jni/Tests/gtest/gtest.h
+--- opencv-2.4.12.2.orig/platforms/android/service/engine/jni/Tests/gtest/gtest.h	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/platforms/android/service/engine/jni/Tests/gtest/gtest.h	2015-09-22 10:33:52.253036300 +0900
+@@ -1710,7 +1710,7 @@
+ 
+ #endif  // GTEST_HAS_SEH
+ 
+-#ifdef _MSC_VER
++#if defined _MSC_VER || defined __MINGW__ || defined __CYGWIN__
+ 
+ # if GTEST_LINKED_AS_SHARED_LIBRARY
+ #  define GTEST_API_ __declspec(dllimport)
+diff -uNr opencv-2.4.12.2.orig/samples/cpp/Qt_sample/qt_opengl.cpp opencv-2.4.12.2/samples/cpp/Qt_sample/qt_opengl.cpp
+--- opencv-2.4.12.2.orig/samples/cpp/Qt_sample/qt_opengl.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/samples/cpp/Qt_sample/qt_opengl.cpp	2015-09-22 10:33:52.422147600 +0900
+@@ -12,6 +12,8 @@
+ 
+ #ifdef __APPLE__
+ #include <OpenGL/gl.h>
++#elif defined __CYGWIN__
++#include <w32api/GL/gl.h>
+ #else
+ #if defined _MSC_VER && _MSC_VER >= 1600
+ #include <windows.h>
+diff -uNr opencv-2.4.12.2.orig/samples/cpp/tutorial_code/viz/transformations.cpp opencv-2.4.12.2/samples/cpp/tutorial_code/viz/transformations.cpp
+--- opencv-2.4.12.2.orig/samples/cpp/tutorial_code/viz/transformations.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/samples/cpp/tutorial_code/viz/transformations.cpp	2015-09-22 10:33:52.434157200 +0900
+@@ -71,7 +71,7 @@
+     myWindow.showWidget("Coordinate Widget", viz::WCoordinateSystem());
+ 
+     /// Let's assume camera has the following properties
+-    Point3f cam_pos(3.0f,3.0f,3.0f), cam_focal_point(3.0f,3.0f,2.0f), cam_y_dir(-1.0f,0.0f,0.0f);
++    Vec3f cam_pos(3.0f,3.0f,3.0f), cam_focal_point(3.0f,3.0f,2.0f), cam_y_dir(-1.0f,0.0f,0.0f);
+ 
+     /// We can get the pose of the cam using makeCameraPose
+     Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
+diff -uNr opencv-2.4.12.2.orig/samples/gpu/opengl.cpp opencv-2.4.12.2/samples/gpu/opengl.cpp
+--- opencv-2.4.12.2.orig/samples/gpu/opengl.cpp	2015-09-17 20:02:36.000000000 +0900
++++ opencv-2.4.12.2/samples/gpu/opengl.cpp	2015-09-22 10:33:52.448165700 +0900
+@@ -1,6 +1,6 @@
+ #include <iostream>
+ 
+-#ifdef WIN32
++#if defined WIN32 || defined __CYGWIN__
+     #define WIN32_LEAN_AND_MEAN 1
+     #define NOMINMAX 1
+     #include <windows.h>
+@@ -9,6 +9,9 @@
+ #if defined(__APPLE__)
+     #include <OpenGL/gl.h>
+     #include <OpenGL/glu.h>
++#elif defined(__CYGWIN__)
++    #include <w32api/GL/gl.h>
++    #include <w32api/GL/glu.h>
+ #else
+     #include <GL/gl.h>
+     #include <GL/glu.h>

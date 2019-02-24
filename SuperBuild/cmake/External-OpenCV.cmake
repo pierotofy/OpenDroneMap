@@ -1,6 +1,12 @@
 set(_proj_name opencv)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
+if(CYGWIN)
+  set(EXTRA_CMAKE_ARGS -DENABLE_PRECOMPILED_HEADERS=OFF -DOPENCV_EXTRA_CXX_FLAGS=-Wno-error=address\ -Wno-narrowing)
+  # TODO: CHECK THIS
+  set(PATCH_STEP  patch --forward -p1 < ${SB_ROOT_DIR}/../patched_files/opencv-2.4.12.2-cygwin-patch-20150921.txt || true)
+endif()
+
 ExternalProject_Add(${_proj_name}
   PREFIX            ${_SB_BINARY_DIR}
   TMP_DIR           ${_SB_BINARY_DIR}/tmp
@@ -10,7 +16,7 @@ ExternalProject_Add(${_proj_name}
   URL               https://github.com/Itseez/opencv/archive/2.4.11.zip
   URL_MD5           b517e83489c709eee1d8be76b16976a7
   #--Update/Patch step----------
-  UPDATE_COMMAND    ""
+  UPDATE_COMMAND    ${PATCH_STEP}
   #--Configure step-------------
   SOURCE_DIR        ${SB_SOURCE_DIR}/${_proj_name}
   CMAKE_ARGS
@@ -49,6 +55,7 @@ ExternalProject_Add(${_proj_name}
     -DBUILD_opencv_ts=OFF
     -DCMAKE_BUILD_TYPE:STRING=Release
     -DCMAKE_INSTALL_PREFIX:PATH=${SB_INSTALL_DIR}
+    ${EXTRA_CMAKE_ARGS}
   #--Build step-----------------
   BINARY_DIR        ${_SB_BINARY_DIR}
   #--Install step---------------

@@ -16,17 +16,13 @@ install() {
     apt-cyg update
 
     echo "Installing Required Requisites"
-    apt-cyg install make automake gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel libxml2-devel libiconv-devel libboost_python-devel
+    apt-cyg install make automake autogen autoconf libtool patch gcc-core gcc-g++ git cmake python-pip gdal libgdal-devel libgeos-devel libgeotiff-devel libjsoncpp-devel python-gdal python-devel liblapack-devel eigen3 libboost-devel zlib-devel libexpat-devel gettext-devel libpng-devel libtiff-devel libjpeg-devel libxml2-devel libiconv-devel libboost_python-devel gcc-fortran libcrypt-devel  libsuitesparseconfig-devel libamd-devel libcamd-devel libcolamd-devel libccolamd-devel libcholmod-devel libcxsparse-devel libspqr-devel
 
     # Upgrade pip
     pip2 install --upgrade pip
 
-    echo "Installing OpenCV Dependencies"
-    apt-cyg install opencv libopencv-devel
-
     ## Installing OpenSfM Requisites
     echo "Installing OpenSfM Dependencies"
-    apt-cyg install gcc-fortran
     pip install -U numpy==1.15.4
     pip install -U PyYAML cloudpickle six exifread gpxpy xmltodict appsettings https://github.com/gipit/gippy/archive/1.0.0.zip loky shapely scipy numpy==1.15.4 pyproj repoze.lru
 

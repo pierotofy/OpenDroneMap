@@ -62,12 +62,10 @@ message(STATUS "SuperBuild binary files will be located to: ${SB_BINARY_DIR}")
 # ---------------------------------------------------------------------------------------------
 # Open Source Computer Vision (OpenCV)
 #
-if (NOT CYGWIN)
-    set(ODM_OpenCV_Version 2.4.11)
-    option(ODM_BUILD_OpenCV "Force to build OpenCV library" OFF)
+set(ODM_OpenCV_Version 2.4.11)
+option(ODM_BUILD_OpenCV "Force to build OpenCV library" OFF)
 
-    SETUP_EXTERNAL_PROJECT(OpenCV ${ODM_OpenCV_Version} ${ODM_BUILD_OpenCV})
-endif()
+SETUP_EXTERNAL_PROJECT(OpenCV ${ODM_OpenCV_Version} ${ODM_BUILD_OpenCV})
 
 # ---------------------------------------------------------------------------------------------
 # Point Cloud Library (PCL)

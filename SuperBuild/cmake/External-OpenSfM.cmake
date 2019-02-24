@@ -1,15 +1,13 @@
 set(_proj_name opensfm)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
-set (OPENSFM_DEPENDS ceres opengv)
-set (OPENSFM_CONFIGURE_COMMAND cmake <SOURCE_DIR>/${_proj_name}/src -DCERES_ROOT_DIR=${SB_INSTALL_DIR} -DOPENSFM_BUILD_TESTS=off)
+set (OPENSFM_DEPENDS ceres opengv opencv)
+set (OPENSFM_CONFIGURE_COMMAND cmake <SOURCE_DIR>/${_proj_name}/src -DCERES_ROOT_DIR=${SB_INSTALL_DIR} -DOPENSFM_BUILD_TESTS=off -DOpenCV_DIR=${SB_INSTALL_DIR}/share/OpenCV)
 
-if (NOT CYGWIN)
-  set (OPENSFM_DEPENDS ${OPENSFM_DEPENDS} opencv)
-  set (OPENSFM_CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND} -DOpenCV_DIR=${SB_INSTALL_DIR}/share/OpenCV)
-else()
+if (CYGWIN)
   set (OPENSFM_DEPENDS ${OPENSFM_DEPENDS} glog)
-  set (OPENSFM_CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND} -DCMAKE_CXX_FLAGS="-DM_PI=3.14159265358979323846")
+  set (OPENSFM_CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND} -DCMAKE_CXX_FLAGS="-Wa,-mbig-obj -DM_PI=3.14159265358979323846")
+  set (OPENSFM_INSTALL_COMMAND ln -s ${_SB_BINARY_DIR}/csfm.so ${SB_SOURCE_DIR}/${_proj_name}/opensfm/csfm.dll )
 endif()
 
 ExternalProject_Add(${_proj_name}
@@ -29,7 +27,7 @@ ExternalProject_Add(${_proj_name}
   #--Build step-----------------
   BINARY_DIR        ${_SB_BINARY_DIR}
   #--Install step---------------
-  INSTALL_COMMAND    ""
+  INSTALL_COMMAND    ${OPENSFM_INSTALL_COMMAND}
   #--Output logging-------------
   LOG_DOWNLOAD      OFF
   LOG_CONFIGURE     OFF

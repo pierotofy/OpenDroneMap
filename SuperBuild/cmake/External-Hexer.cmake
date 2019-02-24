@@ -2,7 +2,7 @@ set(_proj_name hexer)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
 if(CYGWIN)
-  set(EXTRA_CMAKE_ARGS -DGDAL_LIBRARY=gdal -DCMAKE_CXX_FLAGS=-std=gnu++11 -DWIN32=ON)
+  set(EXTRA_CMAKE_ARGS -DGDAL_LIBRARY=gdal -DWIN32=ON)
 endif()
 
 ExternalProject_Add(${_proj_name}
