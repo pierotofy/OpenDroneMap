@@ -1,6 +1,12 @@
-externalproject_add(glog
+ set(_proj_name glog)
+ set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
+
+externalproject_add(${_proj_name}
+    PREFIX            ${_SB_BINARY_DIR}
+    TMP_DIR           ${_SB_BINARY_DIR}/tmp
+    STAMP_DIR         ${_SB_BINARY_DIR}/stamp
     GIT_REPOSITORY  https://github.com/google/glog
-    GIT_TAG         7ffca211fe8bf30453da9e27b66000d3735f96b9
+    GIT_TAG         5c576f78c49b28d89b23fbb1fc80f54c879ec02e
     GIT_SHALLOW     ON
     UPDATE_COMMAND  ""
     SOURCE_DIR      ${SB_SOURCE_DIR}/glog

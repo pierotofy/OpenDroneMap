@@ -106,7 +106,7 @@ set(custom_libs OpenGV
 )
 
 if (CYGWIN)
-    set (custom_libs glog ${custom_libs})
+    set (custom_libs glog gflags ${custom_libs})
 endif()
 
 # Dependencies of the SLAM module
