@@ -1,13 +1,14 @@
 set(_proj_name opensfm)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
-set (OPENSFM_DEPENDS ceres opengv opencv)
-set (OPENSFM_CONFIGURE_COMMAND cmake <SOURCE_DIR>/${_proj_name}/src -DCERES_ROOT_DIR=${SB_INSTALL_DIR} -DGLOG_INCLUDE_DIR=${SB_INSTALL_DIR}/include -DGLOG_LIBRARY=${SB_INSTALL_DIR}/lib/libglog.a -DOPENSFM_BUILD_TESTS=off -DOpenCV_DIR=${SB_INSTALL_DIR}/share/OpenCV)
+set (OPENSFM_DEPENDS ceres opencv)
+set (OPENSFM_CONFIGURE_COMMAND cmake <SOURCE_DIR>/${_proj_name}/src -DPYBIND11_PYTHON_VERSION=2.7 -DCERES_ROOT_DIR=${SB_INSTALL_DIR} -DGLOG_INCLUDE_DIR=${SB_INSTALL_DIR}/include -DGLOG_LIBRARY=${SB_INSTALL_DIR}/lib/libglog.a -DOPENSFM_BUILD_TESTS=off -DOpenCV_DIR=${SB_INSTALL_DIR}/share/OpenCV)
 
 if (CYGWIN)
   set (OPENSFM_DEPENDS ${OPENSFM_DEPENDS} glog gflags)
-  set (OPENSFM_CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND} -DCMAKE_CXX_FLAGS="-Wa,-mbig-obj -DM_PI=3.14159265358979323846")
-  set (OPENSFM_INSTALL_COMMAND ln -s ${_SB_BINARY_DIR}/csfm.so ${SB_SOURCE_DIR}/${_proj_name}/opensfm/csfm.dll )
+  set (OPENSFM_CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND})
+  # -DCMAKE_CXX_FLAGS="-Wa,-mbig-obj -DM_PI=3.14159265358979323846"
+  #set (OPENSFM_INSTALL_COMMAND ln -s ${_SB_BINARY_DIR}/csfm.so ${SB_SOURCE_DIR}/${_proj_name}/opensfm/csfm.dll )
 endif()
 
 ExternalProject_Add(${_proj_name}
@@ -17,8 +18,10 @@ ExternalProject_Add(${_proj_name}
   STAMP_DIR         ${_SB_BINARY_DIR}/stamp
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}
-  GIT_REPOSITORY    https://github.com/OpenDroneMap/OpenSfM/
-  GIT_TAG           099
+
+  # TODO: change this!
+  GIT_REPOSITORY    https://github.com/mapillary/OpenSfM/
+  GIT_TAG           master
   #--Update/Patch step----------
   UPDATE_COMMAND    git submodule update --init --recursive
   #--Configure step-------------

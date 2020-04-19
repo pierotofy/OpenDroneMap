@@ -6,7 +6,7 @@ externalproject_add(${_proj_name}
     TMP_DIR           ${_SB_BINARY_DIR}/tmp
     STAMP_DIR         ${_SB_BINARY_DIR}/stamp
     GIT_REPOSITORY  https://github.com/google/glog
-    GIT_TAG         5c576f78c49b28d89b23fbb1fc80f54c879ec02e
+    GIT_TAG         v0.4.0
     GIT_SHALLOW     ON
     UPDATE_COMMAND  ""
     SOURCE_DIR      ${SB_SOURCE_DIR}/glog

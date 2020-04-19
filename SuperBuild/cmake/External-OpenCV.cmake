@@ -1,10 +1,12 @@
 set(_proj_name opencv)
 set(_SB_BINARY_DIR "${SB_BINARY_DIR}/${_proj_name}")
 
+set(OPENCV_VERSION "3.4.6")
 if(CYGWIN)
-  set(EXTRA_CMAKE_ARGS -DENABLE_PRECOMPILED_HEADERS=OFF -DOPENCV_EXTRA_CXX_FLAGS=-Wno-error=address\ -Wno-narrowing)
+  set(OPENCV_VERSION "3.4.1")
+  set(EXTRA_CMAKE_ARGS -DBUILD_SHARED_LIBS=ON -DWITH_ITT=OFF -DWITH_IPP=OFF _DENABLE_FAST_MATH=ON -DENABLE_CXX11=OFF -DHAVE_CXX11=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -DOPENCV_EXTRA_CXX_FLAGS=-std=gnu++14\ -Wa,-mbig-obj)
   # TODO: CHECK THIS
-  set(PATCH_STEP  patch --forward -p1 < ${SB_ROOT_DIR}/../patched_files/opencv-2.4.12.2-cygwin-patch-20150921.txt || true)
+  set(PATCH_STEP  patch --forward -p1 < ${SB_ROOT_DIR}/../patched_files/opencv-3.4.1-cygwin-patch-20180228.txt || true)
 endif()
 
 ExternalProject_Add(opencv_contrib
@@ -29,13 +31,13 @@ ExternalProject_Add(opencv_contrib
 )
 
 ExternalProject_Add(${_proj_name}
-  DEPENDS           opencv_contrib
+  #DEPENDS           opencv_contrib
   PREFIX            ${_SB_BINARY_DIR}
   TMP_DIR           ${_SB_BINARY_DIR}/tmp
   STAMP_DIR         ${_SB_BINARY_DIR}/stamp
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}
-  URL               https://github.com/opencv/opencv/archive/3.4.6.zip
+  URL               https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip
   #--Update/Patch step----------
   UPDATE_COMMAND    ${PATCH_STEP}
   #--Configure step-------------
@@ -53,7 +55,7 @@ ExternalProject_Add(${_proj_name}
     -DBUILD_opencv_objdetect=ON
     -DBUILD_opencv_photo=ON
     -DBUILD_opencv_legacy=ON
-    -DBUILD_opencv_python=ON
+    -DBUILD_opencv_python2=ON
     -DWITH_FFMPEG=${ODM_BUILD_SLAM}
     -DWITH_CUDA=OFF
     -DWITH_GTK=${ODM_BUILD_SLAM}
@@ -74,8 +76,8 @@ ExternalProject_Add(${_proj_name}
     -DBUILD_opencv_java=OFF
     -DBUILD_opencv_ocl=OFF
     -DBUILD_opencv_ts=OFF
-    -DOPENCV_EXTRA_MODULES_PATH=${SB_SOURCE_DIR}/opencv_contrib/modules
-    -DBUILD_opencv_xfeatures2d=ON
+    #-DOPENCV_EXTRA_MODULES_PATH=${SB_SOURCE_DIR}/opencv_contrib/modules
+    #-DBUILD_opencv_xfeatures2d=ON
     -DCMAKE_BUILD_TYPE:STRING=Release
     -DCMAKE_INSTALL_PREFIX:PATH=${SB_INSTALL_DIR}
     ${EXTRA_CMAKE_ARGS}

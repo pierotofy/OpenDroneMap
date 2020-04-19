@@ -24,15 +24,12 @@ install() {
 
     ## Installing OpenSfM Requisites
     echo "Installing OpenSfM Dependencies"
-    pip install -U numpy==1.15.4
-    pip install -U PyYAML cloudpickle six exifread gpxpy xmltodict appsettings https://github.com/gipit/gippy/archive/1.0.0.zip loky shapely scipy numpy==1.15.4 pyproj repoze.lru
+    pip install -U PyYAML cloudpickle six exifread gpxpy xmltodict appsettings https://github.com/gipit/gippy/archive/1.0.0.zip loky shapely scipy numpy pyproj repoze.lru
 
     echo "Installing Ecto Dependencies"
 
     # TODO: missing pyside (needs qmake?)
     # TODO missing liblas-bin
-    pip install -U catkin-pkg empy nose
-
     echo "Compiling SuperBuild"
     cd ${RUNPATH}/SuperBuild
     mkdir -p build && cd build
