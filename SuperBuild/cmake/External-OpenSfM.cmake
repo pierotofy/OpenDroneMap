@@ -17,9 +17,10 @@ ExternalProject_Add(${_proj_name}
   STAMP_DIR         ${_SB_BINARY_DIR}/stamp
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}
-  URL               https://github.com/OpenDroneMap/OpenSfM/archive/9b4b17f238a3762c4267cdaeb5f64173c0f704a6.zip
+  GIT_REPOSITORY    https://github.com/OpenDroneMap/OpenSfM/
+  GIT_TAG           099
   #--Update/Patch step----------
-  UPDATE_COMMAND    ""
+  UPDATE_COMMAND    git submodule update --init --recursive
   #--Configure step-------------
   SOURCE_DIR        ${SB_SOURCE_DIR}/${_proj_name}
   CONFIGURE_COMMAND ${OPENSFM_CONFIGURE_COMMAND}

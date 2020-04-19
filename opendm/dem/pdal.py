@@ -34,10 +34,10 @@ import os
 import json as jsonlib
 import tempfile
 from opendm import system
+from opendm import log
 
-import glob
 from datetime import datetime
-import uuid
+from pipes import quote
 
 
 """ JSON Functions """
@@ -48,24 +48,23 @@ def json_base():
     return {'pipeline': []}
 
 
-def json_gdal_base(fout, output, radius, resolution=1):
+def json_gdal_base(filename, output_type, radius, resolution=1, bounds=None):
     """ Create initial JSON for PDAL pipeline containing a Writer element """
     json = json_base()
 
-    if len(output) > 1:
-        # TODO: we might want to create a multiband raster with max/min/idw
-        # in the future
-        print "More than 1 output, will only create {0}".format(output[0])
-        output = [output[0]]
-
-    json['pipeline'].insert(0, {
+    d = {
         'type': 'writers.gdal',
         'resolution': resolution,
         'radius': radius,
-        'filename': '{0}.{1}.tif'.format(fout, output[0]),
-        'output_type': output[0],
+        'filename': filename,
+        'output_type': output_type,
         'data_type': 'float'
-    })
+    }
+
+    if bounds is not None:
+        d['bounds'] = "([%s,%s],[%s,%s])" % (bounds['minx'], bounds['maxx'], bounds['miny'], bounds['maxy'])
+
+    json['pipeline'].insert(0, d)
 
     return json
 
@@ -98,75 +97,6 @@ def json_add_classification_filter(json, classification, equality="equals"):
     json['pipeline'].insert(0, {
             'type': 'filters.range',
             'limits': limits
-        })
-    return json
-
-
-def json_add_maxsd_filter(json, meank=20, thresh=3.0):
-    """ Add outlier Filter element and return """
-    json['pipeline'].insert(0, {
-            'type': 'filters.outlier',
-            'method': 'statistical',
-            'mean_k': meank,
-            'multiplier': thresh
-        })
-    return json
-
-
-def json_add_maxz_filter(json, maxz):
-    """ Add max elevation Filter element and return """
-    json['pipeline'].insert(0, {
-            'type': 'filters.range',
-            'limits': 'Z[:{0}]'.format(maxz)
-        })
-
-    return json
-
-
-def json_add_maxangle_filter(json, maxabsangle):
-    """ Add scan angle Filter element and return """
-    json['pipeline'].insert(0, {
-            'type': 'filters.range',
-            'limits': 'ScanAngleRank[{0}:{1}]'.format(str(-float(maxabsangle)), maxabsangle)
-        })
-    return json
-
-
-def json_add_scanedge_filter(json, value):
-    """ Add EdgeOfFlightLine Filter element and return """
-    json['pipeline'].insert(0, {
-            'type': 'filters.range',
-            'limits': 'EdgeOfFlightLine[{0}:{0}]'.format(value)
-        })
-    return json
-
-
-def json_add_returnnum_filter(json, value):
-    """ Add ReturnNum Filter element and return """
-    json['pipeline'].insert(0, {
-            'type': 'filters.range',
-            'limits': 'ReturnNum[{0}:{0}]'.format(value)
-        })
-    return json
-
-
-def json_add_filters(json, maxsd=None, maxz=None, maxangle=None, returnnum=None):
-    if maxsd is not None:
-        json = json_add_maxsd_filter(json, thresh=maxsd)
-    if maxz is not None:
-        json = json_add_maxz_filter(json, maxz)
-    if maxangle is not None:
-        json = json_add_maxangle_filter(json, maxangle)
-    if returnnum is not None:
-        json = json_add_returnnum_filter(json, returnnum)
-    return json
-
-
-def json_add_crop_filter(json, wkt):
-    """ Add cropping polygon as Filter Element and return """
-    json['pipeline'].insert(0, {
-            'type': 'filters.crop',
-            'polygon': wkt
         })
     return json
 
@@ -204,7 +134,7 @@ def json_add_readers(json, filenames):
 
 def json_print(json):
     """ Pretty print JSON """
-    print jsonlib.dumps(json, indent=4, separators=(',', ': '))
+    log.ODM_DEBUG(jsonlib.dumps(json, indent=4, separators=(',', ': ')))
 
 
 """ Run PDAL commands """
@@ -217,7 +147,7 @@ def run_pipeline(json, verbose=False):
     # write to temp file
     f, jsonfile = tempfile.mkstemp(suffix='.json')
     if verbose:
-        print 'Pipeline file: %s' % jsonfile
+        log.ODM_INFO('Pipeline file: %s' % jsonfile)
     os.write(f, jsonlib.dumps(json))
     os.close(f)
 
@@ -227,40 +157,13 @@ def run_pipeline(json, verbose=False):
         '-i %s' % jsonfile
     ]
     if verbose:
-        out = system.run(' '.join(cmd))
+        system.run(' '.join(cmd))
     else:
-        out = system.run(' '.join(cmd) + ' > /dev/null 2>&1')
+        system.run(' '.join(cmd) + ' > /dev/null 2>&1')
     os.remove(jsonfile)
 
 
-def run_pdalground(fin, fout, slope, cellsize, maxWindowSize, maxDistance, approximate=False, initialDistance=0.7, verbose=False):
-    """ Run PDAL ground """
-    cmd = [
-        'pdal',
-        'ground',
-        '-i %s' % fin,
-        '-o %s' % fout,
-        '--slope %s' % slope,
-        '--cell_size %s' % cellsize,
-        '--initial_distance %s' % initialDistance
-    ]
-    if maxWindowSize is not None:
-        cmd.append('--max_window_size %s' %maxWindowSize)
-    if maxDistance is not None:
-        cmd.append('--max_distance %s' %maxDistance)
-
-    if approximate:
-        cmd.append('--approximate')
-
-    if verbose:
-        cmd.append('--developer-debug')
-        print ' '.join(cmd)
-    print ' '.join(cmd)
-    out = system.run(' '.join(cmd))
-    if verbose:
-        print out
-
-def run_pdaltranslate_smrf(fin, fout, slope, cellsize, maxWindowSize, verbose=False):
+def run_pdaltranslate_smrf(fin, fout, scalar, slope, threshold, window, verbose=False):
     """ Run PDAL translate  """
     cmd = [
         'pdal',
@@ -268,16 +171,30 @@ def run_pdaltranslate_smrf(fin, fout, slope, cellsize, maxWindowSize, verbose=Fa
         '-i %s' % fin,
         '-o %s' % fout,
         'smrf',
-        '--filters.smrf.cell=%s' % cellsize,
+        '--filters.smrf.scalar=%s' % scalar,
         '--filters.smrf.slope=%s' % slope,
+        '--filters.smrf.threshold=%s' % threshold,
+        '--filters.smrf.window=%s' % window,
     ]
-    if maxWindowSize is not None:
-        cmd.append('--filters.smrf.window=%s' % maxWindowSize)
 
     if verbose:
-        print ' '.join(cmd)
+        log.ODM_INFO(' '.join(cmd))
 
-    out = system.run(' '.join(cmd))
+    system.run(' '.join(cmd))
+
+def merge_point_clouds(input_files, output_file, verbose=False):
+    if len(input_files) == 0:
+        log.ODM_WARNING("Cannot merge point clouds, no point clouds to merge.")
+        return
+
+    cmd = [
+        'pdal',
+        'merge',
+        ' '.join(map(quote, input_files + [output_file])),
+    ]
+
     if verbose:
-        print out
+        log.ODM_INFO(' '.join(cmd))
+    
+    system.run(' '.join(cmd))
 

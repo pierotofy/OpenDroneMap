@@ -9,13 +9,13 @@ else()
 endif()
 
 ExternalProject_Add(${_proj_name}
-  DEPENDS           hexer laszip
+  DEPENDS           zstd hexer laszip
   PREFIX            ${_SB_BINARY_DIR}
   TMP_DIR           ${_SB_BINARY_DIR}/tmp
   STAMP_DIR         ${_SB_BINARY_DIR}/stamp
   #--Download step--------------
   DOWNLOAD_DIR      ${SB_DOWNLOAD_DIR}
-  URL               https://github.com/PDAL/PDAL/archive/1.6.zip
+  URL               https://github.com/PDAL/PDAL/archive/1.9.1.zip
   #--Update/Patch step----------
   UPDATE_COMMAND    ""
   #--Configure step-------------
@@ -35,6 +35,7 @@ ExternalProject_Add(${_proj_name}
 	-DBUILD_PLUGIN_SQLITE=OFF
 	-DBUILD_PLUGIN_RIVLIB=OFF
 	-DBUILD_PLUGIN_PYTHON=OFF
+    -DWITH_ZSTD=ON
 	-DENABLE_CTEST=OFF
 	-DWITH_APPS=ON
 	-DWITH_LAZPERF=OFF

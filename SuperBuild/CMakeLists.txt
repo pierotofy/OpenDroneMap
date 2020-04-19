@@ -70,7 +70,7 @@ SETUP_EXTERNAL_PROJECT(OpenCV ${ODM_OpenCV_Version} ${ODM_BUILD_OpenCV})
 # ---------------------------------------------------------------------------------------------
 # Point Cloud Library (PCL)
 #
-set(ODM_PCL_Version 1.7.2)
+set(ODM_PCL_Version 1.8.0)
 option(ODM_BUILD_PCL "Force to build PCL library" OFF)
 
 SETUP_EXTERNAL_PROJECT(PCL ${ODM_PCL_Version} ${ODM_BUILD_PCL})
@@ -91,17 +91,14 @@ SETUP_EXTERNAL_PROJECT(Hexer 1.4 ON)
 # ---------------------------------------------------------------------------------------------
 # Open Geometric Vision (OpenGV)
 # Open Structure from Motion (OpenSfM)
-# Catkin
-# Ecto
 #
 
 set(custom_libs OpenGV
 				OpenSfM
-				Catkin
-				Ecto
 				LASzip
-                Exiv2
+                Zstd
 				PDAL
+                Entwine
 				MvsTexturing
 )
 
@@ -133,19 +130,16 @@ externalproject_add(mve
     INSTALL_COMMAND ""
 )
 
-externalproject_add(smvs
-    DEPENDS         mve
-    GIT_REPOSITORY  https://github.com/flanggut/smvs.git
-    GIT_TAG         6a7d0c095aa66ab98c5b285c2bc04e34d8993353
-    UPDATE_COMMAND  ""
-    SOURCE_DIR      ${SB_SOURCE_DIR}/elibs/smvs
+externalproject_add(poissonrecon
+    GIT_REPOSITORY    https://github.com/mkazhdan/PoissonRecon.git
+    GIT_TAG           ce5005ae3094d902d551a65a8b3131e06f45e7cf
+    SOURCE_DIR        ${SB_SOURCE_DIR}/PoissonRecon
+    UPDATE_COMMAND    ""
     CONFIGURE_COMMAND ""
     BUILD_IN_SOURCE 1
-    BUILD_COMMAND   make
-    INSTALL_COMMAND ""
+    BUILD_COMMAND     make poissonrecon
+    INSTALL_COMMAND   ""
 )
-
-SETUP_EXTERNAL_PROJECT_CUSTOM(PoissonRecon)
 
 externalproject_add(dem2mesh
     GIT_REPOSITORY    https://github.com/OpenDroneMap/dem2mesh.git
@@ -165,4 +159,17 @@ externalproject_add(dem2points
     BUILD_IN_SOURCE 1
     BUILD_COMMAND     make
     INSTALL_COMMAND   ""
+)
+
+externalproject_add(lastools
+    GIT_REPOSITORY    https://github.com/LAStools/LAStools.git
+    GIT_TAG           2ef44281645999ec7217facec84a5913bbbbe165
+    SOURCE_DIR        ${SB_SOURCE_DIR}/lastools
+    CONFIGURE_COMMAND ""
+    CMAKE_COMMAND     ""
+    CMAKE_GENERATOR   ""
+    UPDATE_COMMAND    ""
+    BUILD_IN_SOURCE 1
+    BUILD_COMMAND     make -C LASlib -j$(nproc) CXXFLAGS='-std=c++11' && make -C src -j$(nproc) CXXFLAGS='-std=c++11' lasmerge
+    INSTALL_COMMAND   mv ${SB_SOURCE_DIR}/lastools/bin/lasmerge ${SB_INSTALL_DIR}/bin
 )
