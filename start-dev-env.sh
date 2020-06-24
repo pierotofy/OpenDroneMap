@@ -8,7 +8,7 @@ if [ "$1" = "--setup" ]; then
 
     if [ ! -f .setupdevenv ]; then
         echo "Recompiling environment... this might take a while."
-        #bash configure.sh reinstall
+        bash configure.sh reinstall
         
         touch .setupdevenv
         apt install -y vim
@@ -75,6 +75,7 @@ fi
 
 export PORT="${PORT:=3000}"
 export QTC="${QTC:=NO}"
+export GPU="${GPU:=NO}"
 
 if [ -z "$DATA" ]; then
     echo "Usage: DATA=/path/to/datasets [VARS] $0"
@@ -83,6 +84,7 @@ if [ -z "$DATA" ]; then
     echo "	DATA	Path to directory that contains datasets for testing. The directory will be mounted in /datasets. If you don't have any, simply set it to a folder outside the ODM repository."
     echo "	PORT	Port to expose for NodeODM (default: $PORT)"
     echo "	QTC	When set to YES, installs QT Creator for C++ development (default: $QTC)"
+    echo "	GPU	When set to YES, starts the container with the --gpu all flag"
     exit 1
 fi
 
@@ -91,6 +93,12 @@ echo "Starting development environment..."
 echo "Datasets path: $DATA"
 echo "NodeODM port: $PORT"
 echo "QT Creator: $QTC"
+echo "GPU: $GPU"
+
+GPU_FLAGS=""
+if [ "$GPU" != "NO" ]; then
+    GPU_FLAGS="--gpus all"
+fi
 
 if [ ! -e "$HOME"/.odm-dev-home ]; then
     mkdir -p "$HOME"/.odm-dev-home
@@ -100,5 +108,5 @@ USER_ID=$(id -u)
 GROUP_ID=$(id -g)
 USER=$(id -un)
 xhost +
-docker run -ti --entrypoint bash --name odmdev -v $(pwd):/code -v "$DATA":/datasets -p $PORT:3000 --privileged -e DISPLAY -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -v="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v="$HOME/.odm-dev-home:/home/$USER" opendronemap/nodeodm -c "/code/start-dev-env.sh --setup $USER $USER_ID $GROUP_ID $QTC"
+docker run -ti --entrypoint bash --name odmdev $GPU_FLAGS -v $(pwd):/code -v "$DATA":/datasets -p $PORT:3000 --privileged -e DISPLAY -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -v="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v="$HOME/.odm-dev-home:/home/$USER" opendronemap/nodeodm -c "/code/start-dev-env.sh --setup $USER $USER_ID $GROUP_ID $QTC"
 exit 0

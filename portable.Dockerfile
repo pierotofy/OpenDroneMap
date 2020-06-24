@@ -1,4 +1,4 @@
-FROM phusion/baseimage as base
+FROM nvidia/cuda:10.2-runtime-ubuntu16.04
 
 # Env variables
 ENV DEBIAN_FRONTEND noninteractive
