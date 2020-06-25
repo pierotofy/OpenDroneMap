@@ -9,7 +9,7 @@ from pyodm import Node, exceptions
 import sys
 
 # parse arguments
-processopts = ['dataset', 'split', 'merge', 'opensfm', 'mve', 'odm_filterpoints',
+processopts = ['dataset', 'split', 'merge', 'opensfm', 'mve', 'colmap_dense', 'odm_filterpoints',
                'odm_meshing', 'mvs_texturing', 'odm_georeferencing',
                'odm_dem', 'odm_orthophoto', 'odm_report']
 

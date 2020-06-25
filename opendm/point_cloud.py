@@ -30,7 +30,7 @@ def filter(input_point_cloud, output_point_cloud, standard_deviation=2.5, meank=
 
     filter_program = os.path.join(context.odm_modules_path, 'odm_filterpoints')
     if not os.path.exists(filter_program):
-        log.ODM_WARNING("{} program not found. Will skip filtering, but this installation should be fixed.")
+        log.ODM_WARNING("{} program not found. Will skip filtering, but this installation should be fixed.".format(filter_program))
         shutil.copy(input_point_cloud, output_point_cloud)
         return
 

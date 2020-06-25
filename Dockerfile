@@ -4,7 +4,9 @@ FROM nvidia/cuda:10.2-runtime-ubuntu16.04
 ENV DEBIAN_FRONTEND noninteractive
 
 #Install dependencies and required requisites
-RUN add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable \
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends software-properties-common \
+  && add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable \
   && add-apt-repository -y ppa:george-edison55/cmake-3.x \
   && apt-get update -y \
   && apt-get install --no-install-recommends -y \

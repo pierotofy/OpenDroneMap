@@ -5,6 +5,7 @@ from opendm import types
 from opendm import io
 from opendm import system
 from opendm import log
+from opendm.gpu import has_gpus
 
 from dataset import ODMLoadDatasetStage
 from run_opensfm import ODMOpenSfMStage
@@ -18,7 +19,7 @@ from odm_dem import ODMDEMStage
 from odm_filterpoints import ODMFilterPoints
 from splitmerge import ODMSplitStage, ODMMergeStage
 from odm_report import ODMReport
-
+from colmap import ODMColmapDenseStage
 
 class ODMApp:
     def __init__(self, args):
@@ -27,6 +28,9 @@ class ODMApp:
         """
         if args.debug:
             log.logger.show_debug = True
+
+        gpu = has_gpus()
+        log.ODM_INFO("GPU detected: %s" % "YES" if gpu else "NO")
         
         dataset = ODMLoadDatasetStage('dataset', args, progress=5.0,
                                           verbose=args.verbose)
@@ -35,6 +39,7 @@ class ODMApp:
         opensfm = ODMOpenSfMStage('opensfm', args, progress=25.0)
         slam = ODMSlamStage('slam', args)
         mve = ODMMveStage('mve', args, progress=50.0)
+        colmap_dense = ODMColmapDenseStage('colmap_dense', args, progress=50.0)
         filterpoints = ODMFilterPoints('odm_filterpoints', args, progress=52.0)
         meshing = ODMeshingStage('odm_meshing', args, progress=60.0,
                                     max_vertex=args.mesh_size,
@@ -70,6 +75,9 @@ class ODMApp:
 
         if args.use_opensfm_dense or args.fast_orthophoto:
             opensfm.connect(filterpoints)
+        elif gpu:
+            opensfm.connect(colmap_dense) \
+                   .connect(filterpoints)
         else:
             opensfm.connect(mve) \
                     .connect(filterpoints)
