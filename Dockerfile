@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.2-runtime-ubuntu16.04
+FROM nvidia/cuda:10.2-devel-ubuntu16.04
 
 # Env variables
 ENV DEBIAN_FRONTEND noninteractive
@@ -24,6 +24,13 @@ RUN apt-get update -y \
   libboost-python-dev \
   libboost-regex-dev \
   libboost-thread-dev \
+  libboost-program-options-dev \
+  libboost-graph-dev \
+  libboost-test-dev \
+  qtbase5-dev \
+  libglew-dev \
+  libqt5opengl5-dev \
+  libfreeimage-dev \
   libeigen3-dev \
   libflann-dev \
   libgdal-dev \
