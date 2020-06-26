@@ -112,6 +112,7 @@ set(custom_libs OpenGV
 				PDAL
                 Entwine
 				MvsTexturing
+                Colmap
 )
 
 # Dependencies of the SLAM module
