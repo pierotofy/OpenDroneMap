@@ -68,7 +68,7 @@ def split(input_point_cloud, outdir, filename_template, capacity, dims=None):
     return [os.path.join(outdir, f) for f in os.listdir(outdir)]
 
 
-def filter(input_point_cloud, output_point_cloud, standard_deviation=2.5, meank=16, sample_radius=0, verbose=False, max_concurrency=1):
+def filter(input_point_cloud, output_point_cloud, standard_deviation=2.5, meank=16, sample_radius=0, use_poisson_sampling=False, verbose=False, max_concurrency=1):
     """
     Filters a point cloud
     """
@@ -83,6 +83,10 @@ def filter(input_point_cloud, output_point_cloud, standard_deviation=2.5, meank=
         return
 
     filters = []
+
+    if use_poisson_sampling:
+        log.ODM_INFO("Using poisson sampling")
+        filters.append('poisson')
 
     if sample_radius > 0:
         log.ODM_INFO("Sampling points around a %sm radius" % sample_radius)
@@ -124,7 +128,8 @@ def filter(input_point_cloud, output_point_cloud, standard_deviation=2.5, meank=
             filter(pcs['path'], io.related_file_path(pcs['path'], postfix="_filtered"), 
                         standard_deviation=standard_deviation, 
                         meank=meank, 
-                        sample_radius=sample_radius, 
+                        sample_radius=sample_radius,
+                        use_poisson_sampling=use_poisson_sampling,
                         verbose=verbose,
                         max_concurrency=1)
         # Filter
@@ -154,6 +159,9 @@ def filter(input_point_cloud, output_point_cloud, standard_deviation=2.5, meank=
                 "--writers.ply.storage_mode='little endian' "
                 "--writers.ply.dims=\"{dims}\" "
                 "").format(**filterArgs)
+
+        if 'poisson' in filters:
+            cmd += "--filters.poisson.depth=10"
 
         if 'sample' in filters:
             cmd += "--filters.sample.radius={} ".format(sample_radius)

@@ -357,6 +357,12 @@ def config(argv=None, parser=None):
                         help='Filters the point cloud by keeping only a single point around a radius N (in meters). This can be useful to limit the output resolution of the point cloud. Set to 0 to disable sampling. '
                              'Default: %(default)s')
 
+    parser.add_argument('--pc-gapfill',
+                action=StoreTrue,
+                nargs=0,
+                default=False,
+                help='Gap-fill interpolate the point cloud using poisson sampling. It generates a denser, uniform point cloud but with potentially less accurate points. Default: %(default)s')
+
     parser.add_argument('--smrf-scalar',
                         metavar='<positive float>',
                         action=StoreValue,
