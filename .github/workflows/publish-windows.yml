@@ -22,7 +22,6 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x64
-        toolset: "14.27.29110"
     - name: Extract code signing cert
       id: code_sign
       uses: timheuer/base64-to-file@v1
