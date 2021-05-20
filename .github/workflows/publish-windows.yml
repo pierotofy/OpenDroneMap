@@ -34,10 +34,9 @@ jobs:
       run: |
         New-Item -Path "HKCU:\SOFTWARE\Jordan Russell\Inno Setup" -Name SignTools -Force
         Set-ItemProperty -Path "HKCU:\SOFTWARE\Jordan Russell\Inno Setup\SignTools" -Name SignTool0 -Value ("signtool=\""" + (Get-Command signtool).Source + """ sign /f \""$env.CODE_SIGN_CERT_PATH\"" /t http://timestamp.sectigo.com " + '$f')
-    - name: Install and create venv
+    - name: Install venv
       run: |
         python -m pip install virtualenv
-        python -m virtualenv venv 
     - name: Build sources
       run: |
         python configure.py build
