@@ -130,16 +130,24 @@ def clean():
 
 def dist():
     print("HERE")
-    # TODO REMOVE
-    os.mkdir("SuperBuild\\download")
+
+    if not os.path.exists("SuperBuild\\download"):
+        print("You need to run configure.py build before you can run dist")
+        # exit(1)
+        os.mkdir("SuperBuild\\download")
 
     # Download VC++ runtime
-    vcredist_path = os.path.join("SuperBuild", "download", "vc_redist.x64.exe")
+    vcredist_path = os.path.join("SuperBuild", "download", "vc_redist.x64.zip")
     if not os.path.isfile(vcredist_path):
-        vcredist_url = "https://github.com/OpenDroneMap/windows-deps/releases/download/2.5.0/VC_redist.x64.exe"
+        vcredist_url = "https://github.com/OpenDroneMap/windows-deps/releases/download/2.5.0/VC_redist.x64.zip"
         print("Downloading %s" % vcredist_url)
         with urllib.request.urlopen(vcredist_url) as response, open(vcredist_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
+
+        print("Extracting --> vc_redist.x64.exe")
+        with zipfile.ZipFile(vcredist_path) as z:
+            z.extractall(os.path.join("SuperBuild", "download"))
+    exit(1)
     print("HERE2")
     # Download portable python
     if not os.path.isdir("python38"):
