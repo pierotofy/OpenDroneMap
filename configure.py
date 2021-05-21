@@ -130,6 +130,9 @@ def clean():
 
 def dist():
     print("HERE")
+    # TODO REMOVE
+    os.mkdir("SuperBuild\\download")
+    
     # Download VC++ runtime
     vcredist_path = os.path.join("SuperBuild", "download", "vc_redist.x64.exe")
     if not os.path.isfile(vcredist_path):
