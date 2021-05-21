@@ -29,6 +29,17 @@ parser.add_argument('--vcpkg-archive-url',
                     default='https://github.com/OpenDroneMap/windows-deps/releases/download/2.5.0/vcpkg-export-250.zip',
                     required=False,
                     help='Path to VCPKG export archive')
+parser.add_argument('--code-sign-cert-path',
+                    type=str,
+                    default='',
+                    required=False,
+                    help='Path to pfx code signing certificate')
+parser.add_argument('--signtool-path',
+                    type=str,
+                    default='',
+                    required=False,
+                    help='Path to signtool.exe')
+
 args = parser.parse_args()
 
 def run(cmd, cwd=os.getcwd()):
@@ -177,7 +188,10 @@ def dist():
             z.extractall("innosetup")
 
     # Run
-    run("innosetup\\iscc /Qp \"innosetup.iss\"")
+    cs_flags = ""
+    if args.code_sign_cert_path and args.signtool_path:
+        cs_flags = '/Ssigntool="%s" sign /f "%s" /t http://timestamp.sectigo.com $f' % (args.signtool_path, args.code_sign_cert_path)
+    run("innosetup\\iscc /Qp " + cs_flags  + " \"innosetup.iss\"")
 
     print("Done! Setup created in dist/")
 
