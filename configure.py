@@ -129,8 +129,6 @@ def clean():
     safe_remove(os.path.join("SuperBuild", "install"))
 
 def dist():
-    print("HERE")
-
     if not os.path.exists("SuperBuild\\download"):
         print("You need to run configure.py build before you can run dist")
         # exit(1)
@@ -147,8 +145,7 @@ def dist():
         print("Extracting --> vc_redist.x64.exe")
         with zipfile.ZipFile(vcredist_path) as z:
             z.extractall(os.path.join("SuperBuild", "download"))
-    exit(1)
-    print("HERE2")
+
     # Download portable python
     if not os.path.isdir("python38"):
         pythonzip_path = os.path.join("SuperBuild", "download", "python38.zip")
@@ -163,7 +160,7 @@ def dist():
         print("Extracting --> python38/")
         with zipfile.ZipFile(pythonzip_path) as z:
             z.extractall("python38")
-    print("HERE3")
+
     # Download innosetup
     if not os.path.isdir("innosetup"):
         innosetupzip_path = os.path.join("SuperBuild", "download", "innosetup.zip")
