@@ -97,8 +97,8 @@ def build():
             os.mkdir(build_dir)
 
         toolchain_file = os.path.join(os.getcwd(), "vcpkg", "scripts", "buildsystems", "vcpkg.cmake")
-        run("cmake .. -DCMAKE_TOOLCHAIN_FILE=\"%s\"" % toolchain_file,  cwd=build_dir)
-        run("cmake --build . --config Release", cwd=build_dir)
+        #run("cmake .. -DCMAKE_TOOLCHAIN_FILE=\"%s\"" % toolchain_file,  cwd=build_dir)
+        #run("cmake --build . --config Release", cwd=build_dir)
 
 def vcpkg_export():
     if not os.path.exists("vcpkg"):
@@ -129,6 +129,7 @@ def clean():
     safe_remove(os.path.join("SuperBuild", "install"))
 
 def dist():
+    print("HERE")
     # Download VC++ runtime
     vcredist_path = os.path.join("SuperBuild", "download", "vc_redist.x64.exe")
     if not os.path.isfile(vcredist_path):
@@ -136,7 +137,7 @@ def dist():
         print("Downloading %s" % vcredist_url)
         with urllib.request.urlopen(vcredist_url) as response, open(vcredist_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
-
+    print("HERE2")
     # Download portable python
     if not os.path.isdir("python38"):
         pythonzip_path = os.path.join("SuperBuild", "download", "python38.zip")
@@ -151,7 +152,7 @@ def dist():
         print("Extracting --> python38/")
         with zipfile.ZipFile(pythonzip_path) as z:
             z.extractall("python38")
-
+    print("HERE3")
     # Download innosetup
     if not os.path.isdir("innosetup"):
         innosetupzip_path = os.path.join("SuperBuild", "download", "innosetup.zip")
