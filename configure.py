@@ -59,7 +59,7 @@ def rmtree(top):
             os.remove(filename)
         for name in dirs:
             os.rmdir(os.path.join(root, name))
-    os.rmdir(top)      
+    os.rmdir(top)
 
 def vcpkg_requirements():
     with open("vcpkg-requirements.txt") as f:
@@ -108,8 +108,8 @@ def build():
             os.mkdir(build_dir)
 
         toolchain_file = os.path.join(os.getcwd(), "vcpkg", "scripts", "buildsystems", "vcpkg.cmake")
-        #run("cmake .. -DCMAKE_TOOLCHAIN_FILE=\"%s\"" % toolchain_file,  cwd=build_dir)
-        #run("cmake --build . --config Release", cwd=build_dir)
+        run("cmake .. -DCMAKE_TOOLCHAIN_FILE=\"%s\"" % toolchain_file,  cwd=build_dir)
+        run("cmake --build . --config Release", cwd=build_dir)
 
 def vcpkg_export():
     if not os.path.exists("vcpkg"):
@@ -142,8 +142,7 @@ def clean():
 def dist():
     if not os.path.exists("SuperBuild\\download"):
         print("You need to run configure.py build before you can run dist")
-        # exit(1)
-        os.mkdir("SuperBuild\\download")
+        exit(1)
 
     # Download VC++ runtime
     vcredist_path = os.path.join("SuperBuild", "download", "vc_redist.x64.zip")
