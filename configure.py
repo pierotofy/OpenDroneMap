@@ -175,7 +175,7 @@ def dist():
         print("Extracting --> innosetup/")
         with zipfile.ZipFile(innosetupzip_path) as z:
             z.extractall("innosetup")
-    # exit(1)
+
     # Run
     run("innosetup\\iscc /Qp \"innosetup.iss\"")
 
