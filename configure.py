@@ -132,11 +132,11 @@ def dist():
     print("HERE")
     # TODO REMOVE
     os.mkdir("SuperBuild\\download")
-    
+
     # Download VC++ runtime
     vcredist_path = os.path.join("SuperBuild", "download", "vc_redist.x64.exe")
     if not os.path.isfile(vcredist_path):
-        vcredist_url = "https://aka.ms/vs/16/release/vc_redist.x64.exe"
+        vcredist_url = "https://github.com/OpenDroneMap/windows-deps/releases/download/2.5.0/VC_redist.x64.exe"
         print("Downloading %s" % vcredist_url)
         with urllib.request.urlopen(vcredist_url) as response, open(vcredist_path, 'wb') as out_file:
             shutil.copyfileobj(response, out_file)
